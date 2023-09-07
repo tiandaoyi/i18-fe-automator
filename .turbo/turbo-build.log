@@ -1,0 +1,4 @@
+
+> @ifreeovo/i18n-extract-cli@3.2.0 build /Users/tiandaoyi/docker-project/i18n-cli/packages/i18n-extract-cli
+> rimraf dist && tsc --build
+
