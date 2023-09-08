@@ -9,9 +9,11 @@ function getCustomizeKey(key: string, path?: string): string {
 function getCommonRule(): Rule {
   return {
     caller: '',
-    functionName: 't',
+    // functionName: 't',
+    functionName: '$t',
     customizeKey: getCustomizeKey,
-    importDeclaration: 'import { t } from "i18n"',
+    // importDeclaration: 'import { t } from "i18n"',
+    importDeclaration: '',
   }
 }
 

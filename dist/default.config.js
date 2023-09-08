@@ -8,9 +8,11 @@ function getCustomizeKey(key, path) {
 function getCommonRule() {
     return {
         caller: '',
-        functionName: 't',
+        // functionName: 't',
+        functionName: '$t',
         customizeKey: getCustomizeKey,
-        importDeclaration: 'import { t } from "i18n"',
+        // importDeclaration: 'import { t } from "i18n"',
+        importDeclaration: '',
     };
 }
 const config = {

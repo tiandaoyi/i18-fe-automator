@@ -102,6 +102,7 @@ function transformJs(code, options) {
     let hasTransformed = false; // 文件里是否存在中文转换，有的话才有必要导入i18n
     function getCallExpression(identifier, quote = "'") {
         const callerName = caller ? caller + '.' : '';
+        // 如果是在script中且非函数组件的话，callerName可能为 this，则会报错
         // const expression = `${callerName}${functionName}(${quote}${identifier}${quote})`
         // @TODO: 后面改成可配置，目前写死key, desc形式
         const expression = `${functionName}({key: '', desc: ${quote}${identifier}${quote}})`;
