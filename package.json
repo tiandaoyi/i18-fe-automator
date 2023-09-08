@@ -1,6 +1,6 @@
 {
   "name": "i18-fe-automator",
-  "version": "0.0.1",
+  "version": "0.0.1-beta.0",
   "description": "前端代码提取中文并替换成$t函数",
   "publishConfig": {
     "access": "public"
