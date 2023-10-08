@@ -41,9 +41,21 @@ const collector_1 = __importDefault(require("./collector"));
 const constants_1 = require("./utils/constants");
 const stateManager_1 = __importDefault(require("./utils/stateManager"));
 const removeLineBreaksInTag_1 = require("./utils/removeLineBreaksInTag");
+const uuid_1 = require("uuid");
 const presetTypescript = require('@babel/preset-typescript');
+let currCollector = collector_1.default.getInstance();
 const COMMENT_TYPE = '!';
-function parseJsSyntax(source, rule) {
+function getDeepObjVal(myObj, val) {
+    // 如果不是个对象，return随机数
+    if (!myObj)
+        return String(Math.random() * 10000) + 'debug34';
+    if (typeof myObj === 'object') {
+        const newVal = myObj[val] || myObj[''];
+        return typeof newVal === 'object' ? getDeepObjVal(newVal, val) : newVal;
+    }
+    return val;
+}
+function parseJsSyntax(source, rule, sourceContent) {
     // html属性有可能是{xx:xx}这种对象形式，直接解析会报错，需要特殊处理。
     // 先处理成temp = {xx:xx} 让babel解析，解析完再还原成{xx:xx}
     let isObjectStruct = false;
@@ -59,6 +71,7 @@ function parseJsSyntax(source, rule) {
             importDeclaration: '',
         },
         parse: (0, parse_1.initParse)([[presetTypescript, { isTSX: true, allExtensions: true }]]),
+        collector: currCollector,
     });
     let stylizedCode = prettier_1.default.format(code, {
         singleQuote: true,
@@ -79,24 +92,28 @@ function hasTransformed(code, functionNameInTemplate) {
     return new RegExp(`\\${functionNameInTemplate}\\(.*\\)`, 'g').test(code);
 }
 // TODO: 需要优化，传参方式太挫
-function parseTextNode(text, rule, getReplaceValue, customizeKey) {
+function parseTextNode(text, rule, getReplaceValue, customizeKey, sourceContent) {
     let str = '';
     const tokens = mustache_1.default.parse(text);
     for (const token of tokens) {
         const type = token[0];
         const value = token[1];
+        // console.log('parseTextNode.type---------', type)
+        // console.log('parseTextNode.value---------', value)
+        // console.log('是否有中文', includeChinese(value))
         if ((0, includeChinese_1.includeChinese)(value)) {
             if (type === 'text') {
                 str += `{{${getReplaceValue(value)}}}`;
-                collector_1.default.add(value, customizeKey);
+                // console.log('parseTextNode.str---------', str)
+                currCollector.add(value, customizeKey);
             }
             else if (type === 'name') {
-                const source = parseJsSyntax(value, rule);
-                str += `{{${source}}}`;
+                const source = parseJsSyntax(value, rule, sourceContent);
+                str += `{{${getCnToEn(source, sourceContent).newValue}}}`;
             }
             else if (type === COMMENT_TYPE) {
                 // 形如{{!xxxx}}这种形式，在mustache里属于注释语法
-                const source = parseJsSyntax(`!${value}`, rule);
+                const source = parseJsSyntax(`!${value}`, rule, sourceContent);
                 str += `{{${source}}}`;
             }
         }
@@ -115,21 +132,91 @@ function parseTextNode(text, rule, getReplaceValue, customizeKey) {
     }
     return str;
 }
-function handleTemplate(code, rule) {
+function getCnToEn(attrValue, sourceContent) {
+    // @TODO: 优化
+    if (!sourceContent || !attrValue) {
+        return {
+            source: attrValue,
+            enKey: attrValue,
+            cn: attrValue,
+            newValue: attrValue,
+        };
+    }
+    const endIndex = 4;
+    const startIndex = attrValue.indexOf('desc:');
+    const cn = attrValue.slice(startIndex + 7, -endIndex);
+    log_1.default.success('222' + cn);
+    const enVal = sourceContent[cn] ||
+        getDeepObjVal(sourceContent, cn) ||
+        sourceContent[(0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(cn))] ||
+        getDeepObjVal(sourceContent, (0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(cn))) ||
+        String(Math.random() * 10000) + 'debug145';
+    const key = (0, uuid_1.v5)(currCollector.getCurrentCollectorPath(), uuid_1.v5.URL).slice(0, 6);
+    // 如果key已经是有值的了，忽略
+    // if (attrValue.indexOf("key: ''") !== -1) {
+    //   return {
+    //     source: attrValue,
+    //     enKey: attrValue,
+    //     cn: attrValue,
+    //     newValue: attrValue,
+    //   }
+    // }
+    const newValue = attrValue.replace("key: ''", `key: '${key}-${enVal}'`);
+    return {
+        source: attrValue,
+        enKey: attrValue,
+        cn,
+        newValue,
+    };
+}
+function handleTemplate(code, rule, sourceContent) {
     let htmlString = '';
+    const isTransformKey = !!sourceContent;
     const { functionNameInTemplate, customizeKey } = rule;
     function getReplaceValue(value, isAttribute) {
+        // const oldValue = value
         value = (0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(value));
         // 表达式结构 $t('xx')
         // let expression = `${functionNameInTemplate}('${customizeKey(
         //   value,
-        //   Collector.getCurrentCollectorPath()
+        //   currCollector.getCurrentCollectorPath()
         // )}')`
         // @TODO: need to configure
-        let expression = `${functionNameInTemplate}({key:'', desc:'${customizeKey(value, collector_1.default.getCurrentCollectorPath())}'})`;
+        let targetKey = "''";
+        if (isTransformKey) {
+            // console.log(
+            //   '`${customizeKey(value, currCollector.getCurrentCollectorPath())}`',
+            //   `${customizeKey(value, currCollector.getCurrentCollectorPath())}`
+            // )
+            targetKey =
+                sourceContent[`${customizeKey(value, currCollector.getCurrentCollectorPath())}`] || "''";
+        }
+        // const targetKey = sourceContent
+        //   ? sourceContent[`${customizeKey(value, currCollector.getCurrentCollectorPath())}`] || "''"
+        //   : "''"
+        // console.log('getReplaceValue: start', targetKey)
+        // let expression = sourceContent
+        //   ? value
+        //   : `${functionNameInTemplate}({key: ${targetKey}, desc:'${customizeKey(
+        //       value,
+        //       currCollector.getCurrentCollectorPath()
+        //     )}'})`
+        // let expression = `${functionNameInTemplate}('${customizeKey(
+        //   value,
+        //   currCollector.getCurrentCollectorPath()
+        // )}')`
+        const expression = `${functionNameInTemplate}({key: ${targetKey}, desc:'${customizeKey(value, currCollector.getCurrentCollectorPath())}'})`;
+        // console.log('getReplaceValue: end', expression)
         // 属性里的$t('')转成$t(``)，并把双引号转成单引号
         if (isAttribute) {
-            expression = expression.replace(/'/g, '`').replace(/"/g, "'");
+            // console.log('是否但双引号转换---before', expression)
+            // 如果有单引号，没有`则
+            // if (expression.indexOf("'") > -1 && expression.indexOf('`') === -1) {
+            //   expression = expression.replace(/"/g, "'")
+            // } else {
+            //   expression = expression.replace(/'/g, '`').replace(/"/g, "'")
+            // }
+            // console.log('是否但双引号转换---after', expression)
         }
         return expression;
     }
@@ -146,7 +233,8 @@ function handleTemplate(code, rule) {
         }
         return attrs;
     }
-    function parseTagAttribute(attributes) {
+    function parseTagAttribute(attributes, sourceContent) {
+        // console.log('parseTagAttribute', attributes)
         let attrs = '';
         for (const key in attributes) {
             const attrValue = attributes[key];
@@ -155,29 +243,38 @@ function handleTemplate(code, rule) {
                 attrs += ` ${key} `;
             }
             else if ((0, includeChinese_1.includeChinese)(attrValue) && isVueDirective) {
-                const source = parseJsSyntax(attrValue, rule);
+                const source = parseJsSyntax(attrValue, rule, sourceContent);
+                // console.log('isVueDirective, source----', source)
                 // 处理属性类似于:xx="'xx'"，这种属性值不是js表达式的情况。attrValue === source即属性值不是js表达式
                 // !hasTransformed()是为了排除，类似:xx="$t('xx')"这种已经转化过的情况。这种情况不需要二次处理
                 if (attrValue === source && !hasTransformed(source, functionNameInTemplate !== null && functionNameInTemplate !== void 0 ? functionNameInTemplate : '')) {
-                    collector_1.default.add(removeQuotes(attrValue), customizeKey);
-                    const expression = getReplaceValue(removeQuotes(attrValue));
+                    // console.log(
+                    //   'parseTagAttribute不需要二次处理 removeQuotes(attrValue)',
+                    //   removeQuotes(attrValue)
+                    // )
+                    currCollector.add(removeQuotes(getCnToEn(attrValue, sourceContent).newValue), customizeKey, getCnToEn(attrValue, sourceContent).cn);
+                    const expression = getReplaceValue(removeQuotes(getCnToEn(attrValue, sourceContent).newValue));
                     attrs += ` ${key}="${expression}" `;
                 }
                 else {
-                    attrs += ` ${key}="${source}" `;
+                    attrs += ` ${key}="${getCnToEn(source, sourceContent).newValue}" `;
                 }
             }
             else if ((0, includeChinese_1.includeChinese)(attrValue) && !isVueDirective) {
+                // 包含中文且非指令
                 const expression = getReplaceValue(attrValue, true);
                 attrs += ` :${key}="${expression}" `;
-                collector_1.default.add(attrValue, customizeKey);
+                // console.log('parseTagAttribute 包含中文且非指令:::::attrValue', attrValue)
+                currCollector.add(attrValue, customizeKey);
             }
             else if (attrValue === '') {
                 // 这里key=''是因为之后还会被pretttier处理一遍，所以写死单引号没什么影响
+                // console.log('单引号？')
                 attrs += `${key}='' `;
             }
             else {
-                attrs += ` ${key}="${attrValue}" `;
+                // console.log('其他情况23666666666')
+                attrs += ` ${key}="${getCnToEn(attrValue, sourceContent).newValue}" `;
             }
         }
         return attrs;
@@ -200,7 +297,7 @@ function handleTemplate(code, rule) {
             // 处理文本节点没有被标签包裹的情况
             // 如果这个标签没被忽略提取，那么就进行文本节点解析
             if (!shouldIgnore) {
-                const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey);
+                const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey, sourceContent);
                 htmlString += text;
                 textNodeCache = '';
             }
@@ -214,7 +311,7 @@ function handleTemplate(code, rule) {
                 htmlString += `<${tagName} ${attrs}>`;
                 return;
             }
-            attrs = parseTagAttribute(attributes);
+            attrs = parseTagAttribute(attributes, sourceContent);
             // 重置属性缓存
             attrsCache = {};
             htmlString += `<${tagName} ${attrs}>`;
@@ -244,7 +341,7 @@ function handleTemplate(code, rule) {
             // 处理文本被标签包裹的情况
             // 如果这个标签没被忽略提取，那么就进行文本节点解析
             if (!shouldIgnore) {
-                const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey);
+                const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey, sourceContent);
                 htmlString += text;
                 textNodeCache = '';
             }
@@ -269,7 +366,7 @@ function handleTemplate(code, rule) {
         },
         oncomment(comment) {
             // 如果注释前有文本节点，就拼接
-            const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey);
+            const text = parseTextNode(textNodeCache, rule, getReplaceValue, customizeKey, sourceContent);
             htmlString += text;
             textNodeCache = '';
             if (comment.includes(constants_1.IGNORE_REMARK)) {
@@ -317,7 +414,7 @@ function findExportDefaultDeclaration(source, parser) {
     });
     return startIndex;
 }
-function handleScript(source, rule) {
+function handleScript(source, rule, sourceContent) {
     // TODO: 这里babel解析可以优化，不然vue文件的script会重复解析两次浪费性能
     const parser = (0, parse_1.initParse)([[presetTypescript, { isTSX: true, allExtensions: true }]]);
     const startIndex = findExportDefaultDeclaration(source, parser);
@@ -328,6 +425,8 @@ function handleScript(source, rule) {
         },
         isJsInVue: true,
         parse: (0, parse_1.initParse)([[presetTypescript, { isTSX: true, allExtensions: true }]]),
+        collector: currCollector,
+        sourceContent,
     };
     if (startIndex !== -1) {
         // 含ts的vue处理
@@ -388,9 +487,9 @@ function getWrapperTemplate(sfcBlock) {
     template += `><%- code %></${type}>`;
     return template;
 }
-function generateSource(sfcBlock, handler, rule) {
+function generateSource(sfcBlock, handler, rule, sourceContent) {
     const wrapperTemplate = getWrapperTemplate(sfcBlock);
-    const source = handler(sfcBlock.content, rule);
+    const source = handler(sfcBlock.content, rule, sourceContent);
     return ejs_1.default.render(wrapperTemplate, {
         code: source,
     });
@@ -415,7 +514,9 @@ function getFileComment(descriptor) {
     return result ? result[0] : '';
 }
 function transformVue(code, options) {
-    const { rule, filePath } = options;
+    const { rule, filePath, sourceContent, collector } = options;
+    currCollector = collector || currCollector || collector_1.default.getInstance();
+    // console.log('transformVue-----start')
     const { descriptor, errors } = (0, compiler_sfc_1.parse)(code);
     if (errors.length > 0) {
         const line = errors[0].loc.start.line;
@@ -430,13 +531,13 @@ function transformVue(code, options) {
     let stylesCode = '';
     const fileComment = getFileComment(descriptor);
     if (template) {
-        templateCode = generateSource(template, handleTemplate, rule);
+        templateCode = generateSource(template, handleTemplate, rule, sourceContent);
     }
     if (script) {
-        scriptCode = generateSource(script, handleScript, rule);
+        scriptCode = generateSource(script, handleScript, rule, sourceContent);
     }
     if (scriptSetup) {
-        scriptCode = generateSource(scriptSetup, handleScript, rule);
+        scriptCode = generateSource(scriptSetup, handleScript, rule, sourceContent);
     }
     if (styles) {
         for (const style of styles) {

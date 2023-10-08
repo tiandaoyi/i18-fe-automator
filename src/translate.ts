@@ -1,5 +1,6 @@
 import fs from 'fs-extra'
-import { googleTranslate, youdaoTranslate, baiduTranslate } from '@ifreeovo/translate-utils'
+// import { googleTranslate, youdaoTranslate, baiduTranslate } from '@ifreeovo/translate-utils'
+import { googleTranslate, youdaoTranslate, baiduTranslate } from './translate-utils/src/index'
 import type { TranslateConfig, StringObject, translatorType } from '../types'
 import { getAbsolutePath } from './utils/getAbsolutePath'
 import log from './utils/log'
@@ -48,6 +49,24 @@ async function translateByYoudao(
   }
 }
 
+function convertToCamelCase(str: string | StringObject) {
+  if (typeof str !== 'string') {
+    return str
+  }
+  // 去除标点符号和空格
+  const cleanedStr = str.replace(/[^\w\s]|_/g, '')
+  // 将字符串按空格分割为单词数组
+  const words = cleanedStr.split(/\s+/)
+  // 转换为大驼峰格式
+  const camelCaseStr = words
+    .map((word) => {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join('')
+
+  return camelCaseStr
+}
+
 async function translateByBaidu(
   word: string,
   locale: string,
@@ -58,7 +77,7 @@ async function translateByBaidu(
     process.exit(1)
   }
   try {
-    return await baiduTranslate(word, 'zh', locale, options.baidu)
+    return (await baiduTranslate(word, 'zh', locale, options.baidu)) as any
   } catch (e) {
     log.error('百度翻译请求出错', e)
     return ''
@@ -79,7 +98,7 @@ export default async function (
   const primaryLangPath = getAbsolutePath(process.cwd(), localePath)
   const newPrimaryLang = flatObjectDeep(getLang(primaryLangPath))
   const localeFileType = StateManager.getToolConfig().localeFileType
-
+  let targetContent = {}
   for (const targetLocale of locales) {
     log.info(`正在翻译${targetLocale}语言包`)
 
@@ -114,6 +133,7 @@ export default async function (
       targetLocale,
       providerOptions: options,
     })
+    console.log('待翻译的中文包', willTranslateText)
     const incrementalTranslation = await translator.translate(willTranslateText)
     newTargetLangPack = {
       ...newTargetLangPack,
@@ -121,9 +141,27 @@ export default async function (
     }
 
     const fileContent = spreadObject(newTargetLangPack)
-    saveLocaleFile(fileContent, targetLocalePath)
+    const obj: any = {}
+
+    // 把英文语言包内容拷贝到目标语言包
+    if (targetLocale === 'en-US' || targetLocale === 'en') {
+      Object.keys(fileContent).forEach((key) => {
+        if (typeof fileContent[key] === 'string') {
+          // const item = convertToCamelCase(fileContent[key])
+          const item = fileContent[key]
+          obj[key] = item
+        } else {
+          obj[key] = fileContent[key]
+        }
+      })
+      targetContent = obj
+    }
+
+    saveLocaleFile(obj, targetLocalePath)
     log.info(`完成${targetLocale}语言包翻译`)
   }
+
+  return targetContent
 }
 
 type tranlateFunction = (
@@ -162,6 +200,9 @@ class Translator {
   async translate(dictionary: Record<string, string>): Promise<Record<string, string>> {
     const allTextArr = Object.keys(dictionary).map((key) => dictionary[key])
     let restTextBundleArr = allTextArr
+    log.success(`allTextArr:${allTextArr.length}`)
+    log.success(`restTextBundleArr:${restTextBundleArr.length}`)
+
     const translationCount = 100
     let startIndex = 0
     const result: string[] = []
@@ -185,7 +226,10 @@ class Translator {
           this.#targetLocale,
           this.#providerOptions
         ),
-        new Promise((resolve) => setTimeout(resolve, 1000)), // 有道翻译接口限制每秒1次请求
+        new Promise((resolve) => {
+          log.success('3000m后执行下一批')
+          setTimeout(resolve, 3000)
+        }), // 有道翻译接口限制每秒1次请求
       ])
 
       let resArr: string[]

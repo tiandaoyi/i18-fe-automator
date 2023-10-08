@@ -4,11 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_extra_1 = __importDefault(require("fs-extra"));
-const chalk_1 = __importDefault(require("chalk"));
 const inquirer_1 = __importDefault(require("inquirer"));
 const path_1 = __importDefault(require("path"));
 const prettier_1 = __importDefault(require("prettier"));
-const cli_progress_1 = __importDefault(require("cli-progress"));
 const glob_1 = __importDefault(require("glob"));
 const merge_1 = __importDefault(require("lodash/merge"));
 const cloneDeep_1 = __importDefault(require("lodash/cloneDeep"));
@@ -21,6 +19,7 @@ const getLang_1 = __importDefault(require("./utils/getLang"));
 const constants_1 = require("./utils/constants");
 const stateManager_1 = __importDefault(require("./utils/stateManager"));
 const exportExcel_1 = __importDefault(require("./exportExcel"));
+const exportExcelEnAndCn_1 = __importDefault(require("./exportExcelEnAndCn"));
 const initConfig_1 = require("./utils/initConfig");
 const saveLocaleFile_1 = require("./utils/saveLocaleFile");
 const assertType_1 = require("./utils/assertType");
@@ -46,8 +45,8 @@ function getSourceFilePaths(input, exclude) {
         return [];
     }
 }
-function saveLocale(localePath) {
-    const keyMap = collector_1.default.getKeyMap();
+function saveLocale(localePath, collector) {
+    const keyMap = collector.getKeyMap();
     const localeAbsolutePath = (0, getAbsolutePath_1.getAbsolutePath)(process.cwd(), localePath);
     if (!fs_extra_1.default.existsSync(localeAbsolutePath)) {
         fs_extra_1.default.ensureFileSync(localeAbsolutePath);
@@ -221,23 +220,29 @@ async function default_1(options) {
     const primaryLangPath = (0, getAbsolutePath_1.getAbsolutePath)(process.cwd(), localePath);
     oldPrimaryLang = (0, getLang_1.default)(primaryLangPath);
     if (!skipExtract) {
+        const cnCollector = collector_1.default.getInstance();
         log_1.default.info('正在转换中文，请稍等...');
         const sourceFilePaths = getSourceFilePaths(input, exclude);
-        const bar = new cli_progress_1.default.SingleBar({
-            format: `${chalk_1.default.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
-        }, cli_progress_1.default.Presets.shades_classic);
+        // const bar = new cliProgress.SingleBar(
+        //   {
+        //     format: `${chalk.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
+        //   },
+        //   cliProgress.Presets.shades_classic
+        // )
         const startTime = new Date().getTime();
-        bar.start(sourceFilePaths.length, 0);
+        // bar.start(sourceFilePaths.length, 0)
         sourceFilePaths.forEach((sourceFilePath) => {
             log_1.default.verbose(`正在提取文件中的中文:`, sourceFilePath);
             const sourceCode = fs_extra_1.default.readFileSync(sourceFilePath, 'utf8');
             const ext = path_1.default.extname(sourceFilePath).replace('.', '');
-            collector_1.default.resetCountOfAdditions();
-            collector_1.default.setCurrentCollectorPath(sourceFilePath);
-            const { code } = (0, transform_1.default)(sourceCode, ext, rules, sourceFilePath);
+            cnCollector.resetCountOfAdditions();
+            cnCollector.setCurrentCollectorPath(sourceFilePath);
+            const { code } = (0, transform_1.default)(sourceCode, ext, rules, sourceFilePath, {
+                collector: cnCollector,
+            });
             log_1.default.verbose(`完成中文提取和语法转换:`, sourceFilePath);
             // 只有文件提取过中文，或文件规则forceImport为true时，才重新写入文件
-            if (collector_1.default.getCountOfAdditions() > 0 || rules[ext].forceImport) {
+            if (cnCollector.getCountOfAdditions() > 0 || rules[ext].forceImport) {
                 const stylizedCode = formatCode(code, ext, i18nConfig.prettier);
                 const outputPath = getOutputPath(input, output, sourceFilePath);
                 fs_extra_1.default.writeFileSync(outputPath, stylizedCode, 'utf8');
@@ -245,32 +250,80 @@ async function default_1(options) {
             }
             // 自定义当前文件的keyMap
             if (adjustKeyMap) {
-                const newkeyMap = adjustKeyMap((0, cloneDeep_1.default)(collector_1.default.getKeyMap()), collector_1.default.getCurrentFileKeyMap(), sourceFilePath);
-                collector_1.default.setKeyMap(newkeyMap);
-                collector_1.default.resetCurrentFileKeyMap();
+                const newkeyMap = adjustKeyMap((0, cloneDeep_1.default)(cnCollector.getKeyMap()), cnCollector.getCurrentFileKeyMap(), sourceFilePath);
+                cnCollector.setKeyMap(newkeyMap);
+                cnCollector.resetCurrentFileKeyMap();
             }
-            bar.increment();
+            // bar.increment()
         });
         // 增量转换时，保留之前的提取的中文结果
         if (i18nConfig.incremental) {
-            const newkeyMap = (0, merge_1.default)(oldPrimaryLang, collector_1.default.getKeyMap());
-            collector_1.default.setKeyMap(newkeyMap);
+            const newkeyMap = (0, merge_1.default)(oldPrimaryLang, cnCollector.getKeyMap());
+            cnCollector.setKeyMap(newkeyMap);
         }
-        saveLocale(localePath);
-        bar.stop();
+        saveLocale(localePath, cnCollector);
+        // bar.stop()
         const endTime = new Date().getTime();
         log_1.default.info(`耗时${((endTime - startTime) / 1000).toFixed(2)}s`);
     }
+    log_1.default.success('中文转换完毕!');
     console.log(''); // 空一行
+    let targetContent = {};
     if (!skipTranslate) {
-        await (0, translate_1.default)(localePath, locales, oldPrimaryLang, {
+        targetContent = await (0, translate_1.default)(localePath, locales, oldPrimaryLang, {
             translator: i18nConfig.translator,
             google: i18nConfig.google,
             youdao: i18nConfig.youdao,
             baidu: i18nConfig.baidu,
         });
+        log_1.default.success('英文转换完毕!');
+        const enCollector = collector_1.default.getInstance();
+        log_1.default.success('英文JSON');
+        log_1.default.success(JSON.stringify(targetContent));
+        // 将$t中的中文翻译成英文后再写入项目中
+        log_1.default.info('正在将$t代码中的key转成该中文(desc)对应的英文，请稍等...');
+        const sourceFilePaths = getSourceFilePaths(input, exclude);
+        // const bar = new cliProgress.SingleBar(
+        //   {
+        //     format: `${chalk.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
+        //   },
+        //   cliProgress.Presets.shades_classic
+        // )
+        // bar.start(sourceFilePaths.length, 0)
+        sourceFilePaths.forEach((sourceFilePath, i) => {
+            // log.verbose(`正在提取文件中的英文:`, sourceFilePath)
+            const sourceCode = fs_extra_1.default.readFileSync(sourceFilePath, 'utf8');
+            const ext = path_1.default.extname(sourceFilePath).replace('.', '');
+            enCollector.resetCountOfAdditions();
+            enCollector.setCurrentCollectorPath(sourceFilePath);
+            log_1.default.success('------i:' + i + sourceFilePath);
+            const { code } = (0, transform_1.default)(sourceCode, ext, rules, sourceFilePath, {
+                sourceContent: targetContent,
+                collector: enCollector,
+            });
+            // log.verbose(`完成英文提取和语法转换:`, sourceFilePath)
+            log_1.default.success('enCollector.getCountOfAdditions()' + enCollector.getCountOfAdditions());
+            if (enCollector.getCountOfAdditions() > 0) {
+                const stylizedCode = formatCode(code, ext, i18nConfig.prettier);
+                const outputPath = getOutputPath(input, output, sourceFilePath);
+                fs_extra_1.default.writeFileSync(outputPath, stylizedCode, 'utf8');
+                // log.verbose(`生成文件:`, outputPath)
+            }
+            // console.log('----')
+            // console.log('enCollector', enCollector.getKeyValueMap())
+            // 自定义当前文件的keyMap
+            if (adjustKeyMap) {
+                const newkeyMap = adjustKeyMap((0, cloneDeep_1.default)(enCollector.getKeyMap()), enCollector.getCurrentFileKeyMap(), sourceFilePath);
+                // console.log('newkeyMap-----', newkeyMap)
+                enCollector.setKeyMap(newkeyMap);
+                enCollector.resetCurrentFileKeyMap();
+            }
+            // bar.increment()
+        });
+        // bar.stop()
+        (0, exportExcelEnAndCn_1.default)(enCollector.getKeyValueMap());
+        log_1.default.success(`导出完毕!`);
     }
-    log_1.default.success('转换完毕!');
     if (i18nConfig.exportExcel) {
         log_1.default.info(`正在导出excel翻译文件`);
         (0, exportExcel_1.default)();

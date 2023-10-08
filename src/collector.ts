@@ -2,6 +2,7 @@ import type { CustomizeKey, StringObject } from '../types'
 import log from './utils/log'
 import { removeLineBreaksInTag } from './utils/removeLineBreaksInTag'
 import { escapeQuotes } from './utils/escapeQuotes'
+import { includeChinese } from './utils/includeChinese'
 
 class Collector {
   private static _instance: Collector
@@ -22,6 +23,9 @@ class Collector {
   private currentFileKeyMap: Record<string, string> = {}
   private currentFilePath = ''
 
+  // key为uuid + 英文，value为中文
+  private keyValueMap: Record<string, string> = {}
+
   setCurrentCollectorPath(path: string) {
     this.currentFilePath = path
   }
@@ -30,13 +34,25 @@ class Collector {
     return this.currentFilePath
   }
 
-  add(value: string, customizeKeyFn: CustomizeKey) {
+  getKeyValueMap() {
+    return this.keyValueMap
+  }
+  clearKeyValueMap() {
+    this.keyValueMap = {}
+  }
+
+  add(value: string, customizeKeyFn: CustomizeKey, oldChinese?: string) {
+    // console.log('add,value ', value)
     const formattedValue = removeLineBreaksInTag(value)
     const customizeKey = customizeKeyFn(escapeQuotes(formattedValue), this.currentFilePath) // key中不能包含回车
     log.verbose('提取中文：', formattedValue)
     this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}") // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
     this.countOfAdditions++
     this.currentFileKeyMap[customizeKey] = formattedValue
+
+    if (oldChinese && value && !includeChinese(value)) {
+      this.keyValueMap[customizeKey] = oldChinese
+    }
   }
 
   getCurrentFileKeyMap(): Record<string, string> {
@@ -64,4 +80,4 @@ class Collector {
   }
 }
 
-export default Collector.getInstance()
+export default Collector

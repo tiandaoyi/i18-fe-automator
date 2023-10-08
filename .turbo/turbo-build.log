@@ -1,4 +1,5 @@
 
-> @ifreeovo/i18n-extract-cli@3.2.0 build /Users/tiandaoyi/docker-project/i18n-cli/packages/i18n-extract-cli
+> i18-fe-automator@0.0.1-beta.0.debug build /Users/tiandaoyi/docker-project/i18n-cli/packages/i18n-extract-cli
 > rimraf dist && tsc --build
 
+ ELIFECYCLE  Command failed.

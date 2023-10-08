@@ -7,9 +7,12 @@ declare class Collector {
     private countOfAdditions;
     private currentFileKeyMap;
     private currentFilePath;
+    private keyValueMap;
     setCurrentCollectorPath(path: string): void;
     getCurrentCollectorPath(): string;
-    add(value: string, customizeKeyFn: CustomizeKey): void;
+    getKeyValueMap(): Record<string, string>;
+    clearKeyValueMap(): void;
+    add(value: string, customizeKeyFn: CustomizeKey, oldChinese?: string): void;
     getCurrentFileKeyMap(): Record<string, string>;
     resetCurrentFileKeyMap(): void;
     getKeyMap(): StringObject;
@@ -17,5 +20,4 @@ declare class Collector {
     resetCountOfAdditions(): void;
     getCountOfAdditions(): number;
 }
-declare const _default: Collector;
-export default _default;
+export default Collector;

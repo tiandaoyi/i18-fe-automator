@@ -16,7 +16,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _Translator_provider, _Translator_targetLocale, _Translator_providerOptions, _Translator_textLengthLimit, _Translator_separator;
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_extra_1 = __importDefault(require("fs-extra"));
-const translate_utils_1 = require("@ifreeovo/translate-utils");
+// import { googleTranslate, youdaoTranslate, baiduTranslate } from '@ifreeovo/translate-utils'
+const index_1 = require("./translate-utils/src/index");
 const getAbsolutePath_1 = require("./utils/getAbsolutePath");
 const log_1 = __importDefault(require("./utils/log"));
 const constants_1 = require("./utils/constants");
@@ -32,7 +33,7 @@ async function translateByGoogle(word, locale, options) {
         process.exit(1);
     }
     try {
-        return await (0, translate_utils_1.googleTranslate)(word, 'zh-CN', locale, options.google.proxy);
+        return await (0, index_1.googleTranslate)(word, 'zh-CN', locale, options.google.proxy);
     }
     catch (e) {
         if (e.name === 'TooManyRequestsError') {
@@ -51,12 +52,28 @@ async function translateByYoudao(word, locale, options) {
         process.exit(1);
     }
     try {
-        return await (0, translate_utils_1.youdaoTranslate)(word, 'zh-CN', locale, options.youdao);
+        return await (0, index_1.youdaoTranslate)(word, 'zh-CN', locale, options.youdao);
     }
     catch (e) {
         log_1.default.error('有道翻译请求出错', e);
         return '';
     }
+}
+function convertToCamelCase(str) {
+    if (typeof str !== 'string') {
+        return str;
+    }
+    // 去除标点符号和空格
+    const cleanedStr = str.replace(/[^\w\s]|_/g, '');
+    // 将字符串按空格分割为单词数组
+    const words = cleanedStr.split(/\s+/);
+    // 转换为大驼峰格式
+    const camelCaseStr = words
+        .map((word) => {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+        .join('');
+    return camelCaseStr;
 }
 async function translateByBaidu(word, locale, options) {
     var _a, _b;
@@ -65,7 +82,7 @@ async function translateByBaidu(word, locale, options) {
         process.exit(1);
     }
     try {
-        return await (0, translate_utils_1.baiduTranslate)(word, 'zh', locale, options.baidu);
+        return (await (0, index_1.baiduTranslate)(word, 'zh', locale, options.baidu));
     }
     catch (e) {
         log_1.default.error('百度翻译请求出错', e);
@@ -81,6 +98,7 @@ async function default_1(localePath, locales, oldPrimaryLang, options) {
     const primaryLangPath = (0, getAbsolutePath_1.getAbsolutePath)(process.cwd(), localePath);
     const newPrimaryLang = (0, flatObjectDeep_1.flatObjectDeep)((0, getLang_1.default)(primaryLangPath));
     const localeFileType = stateManager_1.default.getToolConfig().localeFileType;
+    let targetContent = {};
     for (const targetLocale of locales) {
         log_1.default.info(`正在翻译${targetLocale}语言包`);
         const reg = new RegExp(`/[A-Za-z-]+.${localeFileType}`, 'g');
@@ -113,15 +131,32 @@ async function default_1(localePath, locales, oldPrimaryLang, options) {
             targetLocale,
             providerOptions: options,
         });
+        console.log('待翻译的中文包', willTranslateText);
         const incrementalTranslation = await translator.translate(willTranslateText);
         newTargetLangPack = {
             ...newTargetLangPack,
             ...incrementalTranslation,
         };
         const fileContent = (0, spreadObject_1.spreadObject)(newTargetLangPack);
-        (0, saveLocaleFile_1.saveLocaleFile)(fileContent, targetLocalePath);
+        const obj = {};
+        // 把英文语言包内容拷贝到目标语言包
+        if (targetLocale === 'en-US' || targetLocale === 'en') {
+            Object.keys(fileContent).forEach((key) => {
+                if (typeof fileContent[key] === 'string') {
+                    // const item = convertToCamelCase(fileContent[key])
+                    const item = fileContent[key];
+                    obj[key] = item;
+                }
+                else {
+                    obj[key] = fileContent[key];
+                }
+            });
+            targetContent = obj;
+        }
+        (0, saveLocaleFile_1.saveLocaleFile)(obj, targetLocalePath);
         log_1.default.info(`完成${targetLocale}语言包翻译`);
     }
+    return targetContent;
 }
 exports.default = default_1;
 class Translator {
@@ -147,6 +182,8 @@ class Translator {
     async translate(dictionary) {
         const allTextArr = Object.keys(dictionary).map((key) => dictionary[key]);
         let restTextBundleArr = allTextArr;
+        log_1.default.success(`allTextArr:${allTextArr.length}`);
+        log_1.default.success(`restTextBundleArr:${restTextBundleArr.length}`);
         const translationCount = 100;
         let startIndex = 0;
         const result = [];
@@ -162,7 +199,10 @@ class Translator {
             const [res] = await Promise.all([
                 __classPrivateFieldGet(this, _Translator_provider, "f").call(this, textBundleArr.join(__classPrivateFieldGet(this, _Translator_separator, "f")), // 文本中可能有逗号，为了防止后面分割字符出错，使用\\$代替逗号
                 __classPrivateFieldGet(this, _Translator_targetLocale, "f"), __classPrivateFieldGet(this, _Translator_providerOptions, "f")),
-                new Promise((resolve) => setTimeout(resolve, 1000)), // 有道翻译接口限制每秒1次请求
+                new Promise((resolve) => {
+                    log_1.default.success('3000m后执行下一批');
+                    setTimeout(resolve, 3000);
+                }), // 有道翻译接口限制每秒1次请求
             ]);
             let resArr;
             if (typeof res === 'object') {

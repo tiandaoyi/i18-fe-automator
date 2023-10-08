@@ -18,7 +18,10 @@ import type {
   Node,
   ReturnStatement,
   FunctionExpression,
+  Property,
+  Identifier,
 } from '@babel/types'
+import { v5 as uuidv5 } from 'uuid'
 import type { GeneratorResult } from '@babel/generator'
 import type { transformOptions } from '../types'
 import traverse from '@babel/traverse'
@@ -32,8 +35,11 @@ import { escapeQuotes } from './utils/escapeQuotes'
 import { IGNORE_REMARK } from './utils/constants'
 import StateManager from './utils/stateManager'
 import { removeLineBreaksInTag } from './utils/removeLineBreaksInTag'
+import log from './utils/log'
 
 const t = require('@babel/types')
+
+let currCollector = Collector.getInstance()
 
 type TemplateParams = {
   [k: string]:
@@ -58,6 +64,16 @@ function getObjectExpression(obj: TemplateParams): ObjectExpression {
   })
   const ast = t.objectExpression(ObjectPropertyArr)
   return ast
+}
+
+function getDeepObjVal(myObj: any, val: string): any {
+  // 如果不是个对象，return随机数
+  if (!myObj) return String(Math.random() * 10000) + 'debug71'
+  if (typeof myObj === 'object') {
+    const newVal = myObj[val] || myObj['']
+    return typeof newVal === 'object' ? getDeepObjVal(newVal, val) : newVal
+  }
+  return val
 }
 
 // 判断节点是否是props属性的默认值
@@ -134,41 +150,94 @@ function insertSnippets(node: ArrowFunctionExpression | FunctionExpression, snip
 }
 
 function transformJs(code: string, options: transformOptions): GeneratorResult {
-  const { rule } = options
+  const { rule, sourceContent, collector } = options
+
+  const isTransformKey = !!sourceContent
+
   const { caller, functionName, customizeKey, importDeclaration, functionSnippets, forceImport } =
     rule
+  currCollector = collector || currCollector || Collector.getInstance()
   let hasImportI18n = false // 文件是否导入过i18n
   let hasTransformed = false // 文件里是否存在中文转换，有的话才有必要导入i18n
 
   function getCallExpression(identifier: string, quote = "'"): string {
     const callerName = caller ? caller + '.' : ''
+    // @TODO: 后面可配置
+    // const targetKey =  : `${quote}${quote}`
     // 如果是在script中且非函数组件的话，callerName可能为 this，则会报错
     // const expression = `${callerName}${functionName}(${quote}${identifier}${quote})`
     // @TODO: 后面改成可配置，目前写死key, desc形式
+    // console.log('expression--start')
+    // const expression = `${functionName}({key: ${
+    //   sourceContent ? "'" + sourceContent[identifier] + "'" : "''"
+    // }, desc: ${quote}${identifier}${quote}})`
+    if (isTransformKey) {
+      // console.log('identifier', identifier)
+    }
     const expression = `${functionName}({key: '', desc: ${quote}${identifier}${quote}})`
+    // console.log('expression--end', expression)
 
     return expression
   }
 
   function getReplaceValue(value: string, params?: TemplateParams) {
+    let targetKeyLiteral = t.stringLiteral('')
+    // console.log('172::::targetKeyLiteral')
     // 需要过滤处理引号和换行
     value = removeLineBreaksInTag(escapeQuotes(value))
+
+    if (isTransformKey && value) {
+      // console.log('转换uuidEnKey')
+      const uuidEnKey =
+        sourceContent[value] ||
+        getDeepObjVal(sourceContent, value) ||
+        sourceContent[removeLineBreaksInTag(escapeQuotes(value))] ||
+        getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(value))) ||
+        String(Math.random() * 1000) + 'debug196'
+      const uuidEnKeyStr = `${uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(
+        0,
+        6
+      )}-${uuidEnKey}`
+      // console.log('转换uuidEnKey', uuidEnKeyStr)
+
+      targetKeyLiteral = t.stringLiteral(uuidEnKeyStr)
+      currCollector.add(uuidEnKeyStr, customizeKey, value)
+    }
+    // @TODO: 后面改成可配置
+
     // 表达式结构 obj.fn('xx',{xx:xx})
     let expression
     // i18n标记有参数的情况
     if (params) {
-      const keyLiteral = getStringLiteral(customizeKey(value, Collector.getCurrentCollectorPath()))
+      // console.log('keyLiteral209', value)
+      const keyLiteral = getStringLiteral(
+        customizeKey(value, currCollector.getCurrentCollectorPath())
+      )
+      // console.log('keyLiteral210', keyLiteral)
+
       if (caller) {
         // @TODO: 后面改成可配置
         // return t.callExpression(
         //   t.memberExpression(t.identifier(caller), t.identifier(functionName)),
         //   [keyLiteral, getObjectExpression(params)]
         // )
+        // return t.callExpression(
+        //   // @TODO: 带改善
+        //   t.memberExpression(t.identifier(caller), t.identifier(functionName)),
+        //   [
+        //     t.objectExpression([
+        //       t.objectProperty(t.identifier('key'), targetKeyLiteral),
+        //       t.objectProperty(t.identifier('desc'), keyLiteral),
+        //     ]),
+        //     getObjectExpression(params),
+        //   ]
+        // )
         return t.callExpression(
-          t.memberExpression(t.identifier(caller), t.identifier(functionName)),
+          // @TODO: 带改善
+          t.identifier(functionName),
           [
             t.objectExpression([
-              t.objectProperty(t.identifier('key'), t.stringLiteral('')),
+              t.objectProperty(t.identifier('key'), targetKeyLiteral),
               t.objectProperty(t.identifier('desc'), keyLiteral),
             ]),
             getObjectExpression(params),
@@ -181,7 +250,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         // ])
         return t.callExpression(t.identifier(functionName), [
           t.objectExpression([
-            t.objectProperty(t.identifier('key'), t.stringLiteral('')),
+            t.objectProperty(t.identifier('key'), targetKeyLiteral),
             t.objectProperty(t.identifier('desc'), keyLiteral),
           ]),
           getObjectExpression(params),
@@ -189,7 +258,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
       }
     } else {
       // i18n标记没参数的情况
-      expression = getCallExpression(customizeKey(value, Collector.getCurrentCollectorPath()))
+      expression = getCallExpression(customizeKey(value, currCollector.getCurrentCollectorPath()))
       return template.expression(expression)()
     }
   }
@@ -197,11 +266,13 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
   function transformAST(code: string, options: transformOptions) {
     function getTraverseOptions() {
       return {
+        // 第二次遍历，判断是否需要把key进行转换, isTransformKey
         enter(path: NodePath) {
           const leadingComments = path.node.leadingComments
           if (leadingComments) {
             // 是否跳过翻译
             let isSkipTransform = false
+            // 如果包含i18-ignore，就跳过翻译
             leadingComments.every((comment: Comment) => {
               if (comment.value.includes(IGNORE_REMARK)) {
                 isSkipTransform = true
@@ -217,31 +288,59 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
         StringLiteral(path: NodePath<StringLiteral>) {
           const value = path.node.value
+          // console.log('StringLiteral----', value)
+          // if (isTransformKey) {
+          //   path.skip()
+          //   return
+          // }
+          if (isTransformKey) {
+            // console.log('StringLiteral:val--a', value)
+          }
           // 处理vue props里的中文
-          if (includeChinese(value) && options.isJsInVue && isPropNode(path)) {
+          log.info('300' + value)
+          log.info('301' + options.isJsInVue)
+          log.info('302' + isPropNode(path))
+          log.info('303' + isTransformKey)
+          if (includeChinese(value) && options.isJsInVue && isPropNode(path) && !isTransformKey) {
+            // if (includeChinese(value) && options.isJsInVue && isPropNode(path)) {
+            log.info('这里应该是第一次')
             const expression = `function() {
               return ${getCallExpression(value)}
             }`
-            Collector.add(value, customizeKey)
+            currCollector.add(value, customizeKey)
             path.replaceWith(template.expression(expression)())
             path.skip()
             return
           }
 
-          if (includeChinese(value)) {
+          if (isTransformKey) {
+            log.info('第二次：StringLiteral,存在isTransformKey，:val')
+          }
+          if (includeChinese(value) && !isTransformKey) {
+            log.info('非isJSInVue或者非isPropNode, StringLiteral:val--b' + value)
+
+            // if (includeChinese(value)) {
+
             hasTransformed = true
-            Collector.add(value, customizeKey)
+            // 第一次执行的逻辑，其实无用
+            currCollector.add(value, customizeKey)
             path.replaceWith(getReplaceValue(value))
           }
           path.skip()
         },
 
         TemplateLiteral(path: NodePath<TemplateLiteral>) {
+          // if (isTransformKey) {
+          //   path.skip()
+          //   return
+          // }
           const { node } = path
           const templateMembers = [...node.quasis, ...node.expressions]
           templateMembers.sort((a, b) => (a.start as number) - (b.start as number))
 
           const shouldReplace = node.quasis.some((node) => includeChinese(node.value.raw))
+
+          // if (shouldReplace && !isTransformKey) {
 
           if (shouldReplace) {
             let value = ''
@@ -274,17 +373,31 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
               }
             })
             hasTransformed = true
-            Collector.add(value, customizeKey)
-            const slotParams = isEmpty(params) ? undefined : params
-            path.replaceWith(getReplaceValue(value, slotParams))
+            // console.log('currCollector:value', value)
+            if (!isTransformKey) {
+              currCollector.add(value, customizeKey)
+              const slotParams = isEmpty(params) ? undefined : params
+              path.replaceWith(getReplaceValue(value, slotParams))
+            } else {
+              // currCollector.add(value, customizeKey)
+              const slotParams = isEmpty(params) ? undefined : params
+              // 内部会add
+              path.replaceWith(getReplaceValue(value, slotParams))
+            }
           }
         },
 
         JSXText(path: NodePath<JSXText>) {
           const value = path.node.value
-          if (includeChinese(value)) {
+          if (isTransformKey) {
+            console.log('JSX skip')
+            path.skip()
+            return
+          }
+
+          if (includeChinese(value) && !isTransformKey) {
             hasTransformed = true
-            Collector.add(value.trim(), customizeKey)
+            currCollector.add(value.trim(), customizeKey)
             path.replaceWith(t.JSXExpressionContainer(getReplaceValue(value.trim())))
           }
           path.skip()
@@ -293,23 +406,91 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         JSXAttribute(path: NodePath<JSXAttribute>) {
           const node = path.node as NodePath<JSXAttribute>['node']
           const valueType = node.value?.type
-          if (valueType === 'StringLiteral' && node.value && includeChinese(node.value.value)) {
+          if (
+            valueType === 'StringLiteral' &&
+            node.value &&
+            includeChinese(node.value.value) &&
+            !isTransformKey
+          ) {
             const value = node.value.value
             const jsxIdentifier = t.jsxIdentifier(node.name.name)
             const jsxContainer = t.jSXExpressionContainer(getReplaceValue(value))
             hasTransformed = true
-            Collector.add(value, customizeKey)
+            currCollector.add(value, customizeKey)
             path.replaceWith(t.jsxAttribute(jsxIdentifier, jsxContainer))
             path.skip()
           }
+          if (isTransformKey) {
+            console.log('JSXAttribute skip')
+          }
         },
 
+        // 函数调用表达式
         CallExpression(path: NodePath<CallExpression>) {
           const { node } = path
           const callee = node.callee
 
           // 根据全局配置，跳过不需要提取的函数
           const globalRule = StateManager.getToolConfig().globalRule
+          // console.log('是否转换key：CallExpression', isTransformKey)
+          // console.log(callee)
+          if (isTransformKey && callee.type === 'Identifier' && callee.name === functionName) {
+            // 第一个参数
+            const firstArgument = node.arguments[0]
+            // 判断是否一个对象
+            if (firstArgument && firstArgument.type === 'ObjectExpression') {
+              const properties = firstArgument.properties
+              // console.log('整个对象', properties)
+
+              const keyNode: any =
+                properties.find(
+                  (currNode) => ((currNode as ObjectProperty).key as any).name === 'key'
+                ) || {}
+              const descNode: any =
+                properties.find(
+                  (currNode) => ((currNode as ObjectProperty).key as any).name === 'desc'
+                ) || {}
+
+              if (
+                keyNode.type === 'ObjectProperty' &&
+                keyNode.value.value === '' &&
+                descNode.value &&
+                includeChinese(descNode.value.value)
+              ) {
+                log.info(descNode.value.value)
+
+                // console.log('descNode.value.value--', descNode.value.value)
+                let newValue =
+                  sourceContent[descNode.value.value] ||
+                  getDeepObjVal(sourceContent, descNode.value.value) ||
+                  sourceContent[removeLineBreaksInTag(escapeQuotes(descNode.value.value))] ||
+                  getDeepObjVal(
+                    sourceContent,
+                    removeLineBreaksInTag(escapeQuotes(descNode.value.value))
+                  ) ||
+                  String(Math.random() * 1000) + 'debug468'
+                newValue = `${uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(
+                  0,
+                  6
+                )}-${newValue}`
+                // path.replaceWith(getReplaceValue(value))
+                keyNode.value = getStringLiteral(newValue)
+
+                hasTransformed = true
+                currCollector.add(newValue, customizeKey, descNode.value.value)
+                // path.replaceWith(node)
+
+                // keyNode.value.value = newValue
+                // keyNode.value.extra = {
+                //   raw: `'${newValue}'`,
+                //   rawValue: newValue,
+                // }
+              }
+            }
+            path.skip()
+            return
+          }
+
           const code = nodeToCode(node)
           globalRule.ignoreMethods.forEach((ignoreRule) => {
             if (code.startsWith(ignoreRule)) {
@@ -328,14 +509,14 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
             return
           }
 
-          // 无调用对象的情况，例如$t('xx')
-          if (callee.type === 'Identifier' && callee.name === functionName) {
+          // 无调用对象的情况，例如$t('xx') 并且没有源内容
+          if (callee.type === 'Identifier' && callee.name === functionName && !sourceContent) {
             path.skip()
             return
           }
 
           // 有调用对象的情况，例如this.$t('xx')、i18n.$t('xx)
-          if (callee.type === 'MemberExpression') {
+          if (callee.type === 'MemberExpression' && !sourceContent) {
             if (callee.property && callee.property.type === 'Identifier') {
               if (callee.property.name === functionName) {
                 // 处理形如i18n.$t('xx)的情况
@@ -399,7 +580,9 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
     return ast
   }
 
+  // 转换成AST
   const ast = transformAST(code, options)
+  // 再把AST转换成代码
   const result = babelGenerator(ast, {
     compact: false,
     retainLines: true,

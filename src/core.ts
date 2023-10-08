@@ -17,6 +17,7 @@ import getLang from './utils/getLang'
 import { YOUDAO, GOOGLE, BAIDU } from './utils/constants'
 import StateManager from './utils/stateManager'
 import exportExcel from './exportExcel'
+import exportExcelEnAndCn from './exportExcelEnAndCn'
 import { getI18nConfig } from './utils/initConfig'
 import { saveLocaleFile } from './utils/saveLocaleFile'
 import { isObject } from './utils/assertType'
@@ -52,8 +53,8 @@ function getSourceFilePaths(input: string, exclude: string[]): string[] {
   }
 }
 
-function saveLocale(localePath: string) {
-  const keyMap = Collector.getKeyMap()
+function saveLocale(localePath: string, collector: Collector): void {
+  const keyMap = collector.getKeyMap()
   const localeAbsolutePath = getAbsolutePath(process.cwd(), localePath)
 
   if (!fs.existsSync(localeAbsolutePath)) {
@@ -247,28 +248,32 @@ export default async function (options: CommandOptions) {
   const primaryLangPath = getAbsolutePath(process.cwd(), localePath)
   oldPrimaryLang = getLang(primaryLangPath)
   if (!skipExtract) {
+    const cnCollector = Collector.getInstance()
+
     log.info('正在转换中文，请稍等...')
 
     const sourceFilePaths = getSourceFilePaths(input, exclude)
-    const bar = new cliProgress.SingleBar(
-      {
-        format: `${chalk.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
-      },
-      cliProgress.Presets.shades_classic
-    )
+    // const bar = new cliProgress.SingleBar(
+    //   {
+    //     format: `${chalk.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
+    //   },
+    //   cliProgress.Presets.shades_classic
+    // )
     const startTime = new Date().getTime()
-    bar.start(sourceFilePaths.length, 0)
+    // bar.start(sourceFilePaths.length, 0)
     sourceFilePaths.forEach((sourceFilePath) => {
       log.verbose(`正在提取文件中的中文:`, sourceFilePath)
       const sourceCode = fs.readFileSync(sourceFilePath, 'utf8')
       const ext = path.extname(sourceFilePath).replace('.', '') as FileExtension
-      Collector.resetCountOfAdditions()
-      Collector.setCurrentCollectorPath(sourceFilePath)
-      const { code } = transform(sourceCode, ext, rules, sourceFilePath)
+      cnCollector.resetCountOfAdditions()
+      cnCollector.setCurrentCollectorPath(sourceFilePath)
+      const { code } = transform(sourceCode, ext, rules, sourceFilePath, {
+        collector: cnCollector,
+      })
       log.verbose(`完成中文提取和语法转换:`, sourceFilePath)
 
       // 只有文件提取过中文，或文件规则forceImport为true时，才重新写入文件
-      if (Collector.getCountOfAdditions() > 0 || rules[ext].forceImport) {
+      if (cnCollector.getCountOfAdditions() > 0 || rules[ext].forceImport) {
         const stylizedCode = formatCode(code, ext, i18nConfig.prettier)
         const outputPath = getOutputPath(input, output, sourceFilePath)
         fs.writeFileSync(outputPath, stylizedCode, 'utf8')
@@ -278,39 +283,97 @@ export default async function (options: CommandOptions) {
       // 自定义当前文件的keyMap
       if (adjustKeyMap) {
         const newkeyMap = adjustKeyMap(
-          cloneDeep(Collector.getKeyMap()),
-          Collector.getCurrentFileKeyMap(),
+          cloneDeep(cnCollector.getKeyMap()),
+          cnCollector.getCurrentFileKeyMap(),
           sourceFilePath
         )
-        Collector.setKeyMap(newkeyMap)
-        Collector.resetCurrentFileKeyMap()
+        cnCollector.setKeyMap(newkeyMap)
+        cnCollector.resetCurrentFileKeyMap()
       }
 
-      bar.increment()
+      // bar.increment()
     })
     // 增量转换时，保留之前的提取的中文结果
     if (i18nConfig.incremental) {
-      const newkeyMap = merge(oldPrimaryLang, Collector.getKeyMap())
-      Collector.setKeyMap(newkeyMap)
+      const newkeyMap = merge(oldPrimaryLang, cnCollector.getKeyMap())
+      cnCollector.setKeyMap(newkeyMap)
     }
 
-    saveLocale(localePath)
-    bar.stop()
+    saveLocale(localePath, cnCollector)
+    // bar.stop()
     const endTime = new Date().getTime()
     log.info(`耗时${((endTime - startTime) / 1000).toFixed(2)}s`)
   }
+  log.success('中文转换完毕!')
 
   console.log('') // 空一行
+  let targetContent = {}
   if (!skipTranslate) {
-    await translate(localePath, locales, oldPrimaryLang, {
+    targetContent = await translate(localePath, locales, oldPrimaryLang, {
       translator: i18nConfig.translator,
       google: i18nConfig.google,
       youdao: i18nConfig.youdao,
       baidu: i18nConfig.baidu,
     })
-  }
 
-  log.success('转换完毕!')
+    log.success('英文转换完毕!')
+
+    const enCollector = Collector.getInstance()
+
+    log.success('英文JSON')
+    log.success(JSON.stringify(targetContent))
+
+    // 将$t中的中文翻译成英文后再写入项目中
+    log.info('正在将$t代码中的key转成该中文(desc)对应的英文，请稍等...')
+    const sourceFilePaths = getSourceFilePaths(input, exclude)
+    // const bar = new cliProgress.SingleBar(
+    //   {
+    //     format: `${chalk.cyan('提取进度:')} [{bar}] {percentage}% {value}/{total}`,
+    //   },
+    //   cliProgress.Presets.shades_classic
+    // )
+    // bar.start(sourceFilePaths.length, 0)
+    sourceFilePaths.forEach((sourceFilePath, i) => {
+      // log.verbose(`正在提取文件中的英文:`, sourceFilePath)
+      const sourceCode = fs.readFileSync(sourceFilePath, 'utf8')
+      const ext = path.extname(sourceFilePath).replace('.', '') as FileExtension
+      enCollector.resetCountOfAdditions()
+      enCollector.setCurrentCollectorPath(sourceFilePath)
+      log.success('------i:' + i + sourceFilePath)
+      const { code } = transform(sourceCode, ext, rules, sourceFilePath, {
+        sourceContent: targetContent,
+        collector: enCollector,
+      })
+      // log.verbose(`完成英文提取和语法转换:`, sourceFilePath)
+      log.success('enCollector.getCountOfAdditions()' + enCollector.getCountOfAdditions())
+
+      if (enCollector.getCountOfAdditions() > 0) {
+        const stylizedCode = formatCode(code, ext, i18nConfig.prettier)
+        const outputPath = getOutputPath(input, output, sourceFilePath)
+        fs.writeFileSync(outputPath, stylizedCode, 'utf8')
+        // log.verbose(`生成文件:`, outputPath)
+      }
+      // console.log('----')
+      // console.log('enCollector', enCollector.getKeyValueMap())
+
+      // 自定义当前文件的keyMap
+      if (adjustKeyMap) {
+        const newkeyMap = adjustKeyMap(
+          cloneDeep(enCollector.getKeyMap()),
+          enCollector.getCurrentFileKeyMap(),
+          sourceFilePath
+        )
+        // console.log('newkeyMap-----', newkeyMap)
+        enCollector.setKeyMap(newkeyMap)
+        enCollector.resetCurrentFileKeyMap()
+      }
+
+      // bar.increment()
+    })
+    // bar.stop()
+    exportExcelEnAndCn(enCollector.getKeyValueMap())
+    log.success(`导出完毕!`)
+  }
 
   if (i18nConfig.exportExcel) {
     log.info(`正在导出excel翻译文件`)

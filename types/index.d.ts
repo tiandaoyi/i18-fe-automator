@@ -1,5 +1,15 @@
 import type { ParseResult } from '@babel/core'
 import type { Options } from 'prettier'
+import type { Collector } from './utils/collector'
+
+export interface JsonContent {
+  [key: string]: any
+}
+
+export interface ExtraRule {
+  sourceContent?: JsonContent
+  collector: Collector
+}
 
 export type deepPartial<T extends object> = {
   [K in keyof T]?: T[K] extends object ? deepPartial<T[K]> : T[K]
@@ -14,6 +24,8 @@ export interface transformOptions {
   parse?: (code: string) => ParseResult
   isJsInVue?: boolean
   filePath?: string
+  sourceContent?: JsonContent
+  collector?: Collector
 }
 
 export type CustomizeKey = (key: string, path?: string) => string

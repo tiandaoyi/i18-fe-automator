@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const log_1 = __importDefault(require("./utils/log"));
 const removeLineBreaksInTag_1 = require("./utils/removeLineBreaksInTag");
 const escapeQuotes_1 = require("./utils/escapeQuotes");
+const includeChinese_1 = require("./utils/includeChinese");
 class Collector {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     constructor() {
@@ -15,6 +16,8 @@ class Collector {
         // 记录单个文件里提取的中文，键为自定义key，值为原始中文key
         this.currentFileKeyMap = {};
         this.currentFilePath = '';
+        // key为uuid + 英文，value为中文
+        this.keyValueMap = {};
     }
     static getInstance() {
         if (!this._instance) {
@@ -28,13 +31,23 @@ class Collector {
     getCurrentCollectorPath() {
         return this.currentFilePath;
     }
-    add(value, customizeKeyFn) {
+    getKeyValueMap() {
+        return this.keyValueMap;
+    }
+    clearKeyValueMap() {
+        this.keyValueMap = {};
+    }
+    add(value, customizeKeyFn, oldChinese) {
+        // console.log('add,value ', value)
         const formattedValue = (0, removeLineBreaksInTag_1.removeLineBreaksInTag)(value);
         const customizeKey = customizeKeyFn((0, escapeQuotes_1.escapeQuotes)(formattedValue), this.currentFilePath); // key中不能包含回车
         log_1.default.verbose('提取中文：', formattedValue);
         this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}"); // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
         this.countOfAdditions++;
         this.currentFileKeyMap[customizeKey] = formattedValue;
+        if (oldChinese && value && !(0, includeChinese_1.includeChinese)(value)) {
+            this.keyValueMap[customizeKey] = oldChinese;
+        }
     }
     getCurrentFileKeyMap() {
         return this.currentFileKeyMap;
@@ -55,4 +68,4 @@ class Collector {
         return this.countOfAdditions;
     }
 }
-exports.default = Collector.getInstance();
+exports.default = Collector;

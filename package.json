@@ -1,6 +1,6 @@
 {
   "name": "i18-fe-automator",
-  "version": "0.0.1-beta.0",
+  "version": "0.0.1-beta.1.debug",
   "description": "前端代码提取中文并替换成$t函数",
   "publishConfig": {
     "access": "public"
@@ -11,7 +11,9 @@
   "types": "types/index.d.ts",
   "scripts": {
     "dev": "tsc --watch",
-    "build": "rimraf dist && tsc --build"
+    "build": "rimraf dist && tsc --build",
+    "t1": "node bin/index.js -i ../../examples/vue --skip-translate true",
+    "t2": "node bin/index.js -i ../../examples/vue"
   },
   "keywords": [
     "i18n",
@@ -28,7 +30,7 @@
   "engines": {
     "node": ">=12"
   },
-  "author": "IFreeOvO",
+  "author": "tiandaoyi",
   "license": "MIT",
   "dependencies": {
     "@babel/core": "^7.20.2",
@@ -48,6 +50,8 @@
     "@babel/traverse": "^7.20.0",
     "@babel/types": "^7.20.0",
     "@ifreeovo/translate-utils": "^1.1.0",
+    "@types/uuid": "^9.0.4",
+    "@vitalets/google-translate-api": "9.0.0",
     "@vue/compiler-sfc": "^3.2.39",
     "chalk": "4.1.2",
     "cli-progress": "^3.11.2",
@@ -55,6 +59,7 @@
     "ejs": "^3.1.8",
     "fs-extra": "^10.1.0",
     "glob": "^8.0.3",
+    "got": "11.8.5",
     "htmlparser2": "^8.0.1",
     "inquirer": "8.2.5",
     "leven": "3.1.0",
@@ -67,7 +72,8 @@
     "qs": "^6.11.0",
     "semver": "^7.3.8",
     "serialize-javascript": "^6.0.0",
-    "slash": "3.0.0"
+    "slash": "3.0.0",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/babel__core": "^7.1.20",
