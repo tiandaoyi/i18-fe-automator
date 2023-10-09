@@ -18,7 +18,6 @@ const translate_1 = __importDefault(require("./translate"));
 const getLang_1 = __importDefault(require("./utils/getLang"));
 const constants_1 = require("./utils/constants");
 const stateManager_1 = __importDefault(require("./utils/stateManager"));
-const exportExcel_1 = __importDefault(require("./exportExcel"));
 const exportExcelEnAndCn_1 = __importDefault(require("./exportExcelEnAndCn"));
 const initConfig_1 = require("./utils/initConfig");
 const saveLocaleFile_1 = require("./utils/saveLocaleFile");
@@ -121,9 +120,9 @@ async function getTranslationConfig() {
             message: '请选择翻译接口',
             default: constants_1.YOUDAO,
             choices: [
-                { name: '有道翻译', value: constants_1.YOUDAO },
-                { name: '谷歌翻译', value: constants_1.GOOGLE },
                 { name: '百度翻译', value: constants_1.BAIDU },
+                // { name: '有道翻译', value: YOUDAO },
+                // { name: '谷歌翻译', value: GOOGLE },
             ],
             when(answers) {
                 return !answers.skipTranslate;
@@ -296,21 +295,20 @@ async function default_1(options) {
             const ext = path_1.default.extname(sourceFilePath).replace('.', '');
             enCollector.resetCountOfAdditions();
             enCollector.setCurrentCollectorPath(sourceFilePath);
-            log_1.default.success('------i:' + i + sourceFilePath);
+            log_1.default.debug(`当前操作第${i + 1}个文件，路径是：${sourceFilePath}`);
             const { code } = (0, transform_1.default)(sourceCode, ext, rules, sourceFilePath, {
                 sourceContent: targetContent,
                 collector: enCollector,
             });
             // log.verbose(`完成英文提取和语法转换:`, sourceFilePath)
-            log_1.default.success('enCollector.getCountOfAdditions()' + enCollector.getCountOfAdditions());
+            log_1.default.debug('enCollector.getCountOfAdditions()数量', enCollector.getCountOfAdditions());
             if (enCollector.getCountOfAdditions() > 0) {
+                log_1.default.debug('开始写入');
                 const stylizedCode = formatCode(code, ext, i18nConfig.prettier);
                 const outputPath = getOutputPath(input, output, sourceFilePath);
                 fs_extra_1.default.writeFileSync(outputPath, stylizedCode, 'utf8');
                 // log.verbose(`生成文件:`, outputPath)
             }
-            // console.log('----')
-            // console.log('enCollector', enCollector.getKeyValueMap())
             // 自定义当前文件的keyMap
             if (adjustKeyMap) {
                 const newkeyMap = adjustKeyMap((0, cloneDeep_1.default)(enCollector.getKeyMap()), enCollector.getCurrentFileKeyMap(), sourceFilePath);
@@ -324,10 +322,10 @@ async function default_1(options) {
         (0, exportExcelEnAndCn_1.default)(enCollector.getKeyValueMap());
         log_1.default.success(`导出完毕!`);
     }
-    if (i18nConfig.exportExcel) {
-        log_1.default.info(`正在导出excel翻译文件`);
-        (0, exportExcel_1.default)();
-        log_1.default.success(`导出完毕!`);
-    }
+    // if (i18nConfig.exportExcel) {
+    //   log.info(`正在导出excel翻译文件`)
+    //   exportExcel()
+    //   log.success(`导出完毕!`)
+    // }
 }
 exports.default = default_1;

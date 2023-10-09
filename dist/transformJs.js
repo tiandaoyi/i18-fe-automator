@@ -116,37 +116,27 @@ function transformJs(code, options) {
     let hasImportI18n = false; // 文件是否导入过i18n
     let hasTransformed = false; // 文件里是否存在中文转换，有的话才有必要导入i18n
     function getCallExpression(identifier, quote = "'") {
-        const callerName = caller ? caller + '.' : '';
-        // @TODO: 后面可配置
-        // const targetKey =  : `${quote}${quote}`
-        // 如果是在script中且非函数组件的话，callerName可能为 this，则会报错
-        // const expression = `${callerName}${functionName}(${quote}${identifier}${quote})`
-        // @TODO: 后面改成可配置，目前写死key, desc形式
-        // console.log('expression--start')
-        // const expression = `${functionName}({key: ${
-        //   sourceContent ? "'" + sourceContent[identifier] + "'" : "''"
-        // }, desc: ${quote}${identifier}${quote}})`
-        if (isTransformKey) {
-            // console.log('identifier', identifier)
-        }
+        // if (isTransformKey) {
+        //   log.debug('getCallExpression:identifier', identifier)
+        // }
         const expression = `${functionName}({key: '', desc: ${quote}${identifier}${quote}})`;
-        // console.log('expression--end', expression)
+        // log.debug('expression--end', expression)
         return expression;
     }
     function getReplaceValue(value, params) {
         let targetKeyLiteral = t.stringLiteral('');
-        // console.log('172::::targetKeyLiteral')
+        // log.debug('172::::targetKeyLiteral')
         // 需要过滤处理引号和换行
         value = (0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(value));
         if (isTransformKey && value) {
-            // console.log('转换uuidEnKey')
+            // log.debug('转换uuidEnKey')
             const uuidEnKey = sourceContent[value] ||
                 getDeepObjVal(sourceContent, value) ||
                 sourceContent[(0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(value))] ||
                 getDeepObjVal(sourceContent, (0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(value))) ||
                 String(Math.random() * 1000) + 'debug196';
             const uuidEnKeyStr = `${(0, uuid_1.v5)(currCollector.getCurrentCollectorPath(), uuid_1.v5.URL).slice(0, 6)}-${uuidEnKey}`;
-            // console.log('转换uuidEnKey', uuidEnKeyStr)
+            // log.debug('转换uuidEnKey', uuidEnKeyStr)
             targetKeyLiteral = t.stringLiteral(uuidEnKeyStr);
             currCollector.add(uuidEnKeyStr, customizeKey, value);
         }
@@ -155,9 +145,9 @@ function transformJs(code, options) {
         let expression;
         // i18n标记有参数的情况
         if (params) {
-            // console.log('keyLiteral209', value)
+            // log.debug('keyLiteral209', value)
             const keyLiteral = getStringLiteral(customizeKey(value, currCollector.getCurrentCollectorPath()));
-            // console.log('keyLiteral210', keyLiteral)
+            // log.debug('keyLiteral210', keyLiteral)
             if (caller) {
                 // @TODO: 后面改成可配置
                 // return t.callExpression(
@@ -165,7 +155,7 @@ function transformJs(code, options) {
                 //   [keyLiteral, getObjectExpression(params)]
                 // )
                 // return t.callExpression(
-                //   // @TODO: 带改善
+                //   // @TODO: 待改善
                 //   t.memberExpression(t.identifier(caller), t.identifier(functionName)),
                 //   [
                 //     t.objectExpression([
@@ -176,7 +166,7 @@ function transformJs(code, options) {
                 //   ]
                 // )
                 return t.callExpression(
-                // @TODO: 带改善
+                // @TODO: 待改善
                 t.identifier(functionName), [
                     t.objectExpression([
                         t.objectProperty(t.identifier('key'), targetKeyLiteral),
@@ -229,22 +219,22 @@ function transformJs(code, options) {
                 },
                 StringLiteral(path) {
                     const value = path.node.value;
-                    // console.log('StringLiteral----', value)
+                    // log.debug('StringLiteral----', value)
                     // if (isTransformKey) {
                     //   path.skip()
                     //   return
                     // }
                     if (isTransformKey) {
-                        // console.log('StringLiteral:val--a', value)
+                        // log.debug('StringLiteral:val--a', value)
                     }
                     // 处理vue props里的中文
-                    log_1.default.info('300' + value);
-                    log_1.default.info('301' + options.isJsInVue);
-                    log_1.default.info('302' + isPropNode(path));
-                    log_1.default.info('303' + isTransformKey);
+                    log_1.default.debug('300' + value);
+                    log_1.default.debug('301' + options.isJsInVue);
+                    log_1.default.debug('302' + isPropNode(path));
+                    log_1.default.debug('303' + isTransformKey);
                     if ((0, includeChinese_1.includeChinese)(value) && options.isJsInVue && isPropNode(path) && !isTransformKey) {
                         // if (includeChinese(value) && options.isJsInVue && isPropNode(path)) {
-                        log_1.default.info('这里应该是第一次');
+                        log_1.default.debug('这里应该是第一次');
                         const expression = `function() {
               return ${getCallExpression(value)}
             }`;
@@ -254,10 +244,10 @@ function transformJs(code, options) {
                         return;
                     }
                     if (isTransformKey) {
-                        log_1.default.info('第二次：StringLiteral,存在isTransformKey，:val');
+                        log_1.default.debug('第二次：StringLiteral,存在isTransformKey，:val');
                     }
                     if ((0, includeChinese_1.includeChinese)(value) && !isTransformKey) {
-                        log_1.default.info('非isJSInVue或者非isPropNode, StringLiteral:val--b' + value);
+                        log_1.default.debug('非isJSInVue或者非isPropNode, StringLiteral:val--b' + value);
                         // if (includeChinese(value)) {
                         hasTransformed = true;
                         // 第一次执行的逻辑，其实无用
@@ -310,7 +300,7 @@ function transformJs(code, options) {
                             }
                         });
                         hasTransformed = true;
-                        // console.log('currCollector:value', value)
+                        // log.debug('currCollector:value', value)
                         if (!isTransformKey) {
                             currCollector.add(value, customizeKey);
                             const slotParams = (0, isEmpty_1.default)(params) ? undefined : params;
@@ -327,7 +317,7 @@ function transformJs(code, options) {
                 JSXText(path) {
                     const value = path.node.value;
                     if (isTransformKey) {
-                        console.log('JSX skip');
+                        log_1.default.debug('JSX skip');
                         path.skip();
                         return;
                     }
@@ -355,7 +345,7 @@ function transformJs(code, options) {
                         path.skip();
                     }
                     if (isTransformKey) {
-                        console.log('JSXAttribute skip');
+                        log_1.default.debug('JSXAttribute skip');
                     }
                 },
                 // 函数调用表达式
@@ -364,23 +354,23 @@ function transformJs(code, options) {
                     const callee = node.callee;
                     // 根据全局配置，跳过不需要提取的函数
                     const globalRule = stateManager_1.default.getToolConfig().globalRule;
-                    // console.log('是否转换key：CallExpression', isTransformKey)
-                    // console.log(callee)
+                    // log.debug('是否转换key：CallExpression', isTransformKey)
+                    // log.debug(callee)
                     if (isTransformKey && callee.type === 'Identifier' && callee.name === functionName) {
                         // 第一个参数
                         const firstArgument = node.arguments[0];
                         // 判断是否一个对象
                         if (firstArgument && firstArgument.type === 'ObjectExpression') {
                             const properties = firstArgument.properties;
-                            // console.log('整个对象', properties)
+                            // log.debug('整个对象', properties)
                             const keyNode = properties.find((currNode) => currNode.key.name === 'key') || {};
                             const descNode = properties.find((currNode) => currNode.key.name === 'desc') || {};
                             if (keyNode.type === 'ObjectProperty' &&
                                 keyNode.value.value === '' &&
                                 descNode.value &&
                                 (0, includeChinese_1.includeChinese)(descNode.value.value)) {
-                                log_1.default.info(descNode.value.value);
-                                // console.log('descNode.value.value--', descNode.value.value)
+                                log_1.default.debug(descNode.value.value);
+                                // log.debug('descNode.value.value--', descNode.value.value)
                                 let newValue = sourceContent[descNode.value.value] ||
                                     getDeepObjVal(sourceContent, descNode.value.value) ||
                                     sourceContent[(0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(descNode.value.value))] ||

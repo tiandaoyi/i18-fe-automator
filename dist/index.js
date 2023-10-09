@@ -13,16 +13,7 @@ commander_1.program
     .usage('[command] [options]');
 commander_1.program
     .option('-i, --input <path>', '输入文件路径')
-    .option('-o, --output <path>', '输出文件路径')
-    .option('-c, --config-file <path>', '配置文件所在路径')
     .option('-v, --verbose', '控制台打印更多调试信息')
-    .option('--skip-extract', '跳过中文提取阶段')
-    .option('--skip-translate', '跳过中文翻译阶段')
-    .option('--incremental', '开启增量转换')
-    .option('--locales <locales...>', '根据中文语言包自动翻译成其他语言')
-    .option('--localePath <path>', '指定提取的中文语言包所存放的路径')
-    .option('--excelPath <path>', '语言包excel的存放路径')
-    .option('--exportExcel', '将所有翻译导入到excel。用于人工校对翻译')
     .action((options) => {
     (0, core_1.default)(options);
 });
@@ -36,9 +27,9 @@ commander_1.program
     .command('loadExcel')
     .description('导入翻译语言的excel')
     .option('-v, --verbose', '控制台打印更多调试信息')
-    .option('-c, --config-file <path>', '配置文件所在路径')
-    .option('--localePath <path>', '指定提取的中文语言包所存放的路径')
-    .option('--excelPath <path>', '语言包excel的存放路径')
+    // .option('-c, --config-file <path>', '配置文件所在路径')
+    // .option('--localePath <path>', '指定提取的中文语言包所存放的路径')
+    // .option('--excelPath <path>', '语言包excel的存放路径')
     .action(() => {
     // TODO: 不知道为什么，这里commander没有直接返回指令参数，先用minimist自己处理
     const options = (0, minimist_1.default)(process.argv.slice(3));

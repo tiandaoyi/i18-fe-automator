@@ -93,20 +93,20 @@ function parseTextNode(
   for (const token of tokens) {
     const type = token[0]
     const value = token[1]
-    // console.log('parseTextNode.type---------', type)
-    // console.log('parseTextNode.value---------', value)
-    // console.log('是否有中文', includeChinese(value))
+    // log.debug('parseTextNode.type---------', type)
+    // log.debug('parseTextNode.value---------', value)
+    // log.debug('是否有中文', includeChinese(value))
 
     if (includeChinese(value)) {
       if (type === 'text') {
         str += `{{${getReplaceValue(value)}}}`
-        // console.log('parseTextNode.str---------', str)
+        // log.debug('parseTextNode.str---------', str)
         currCollector.add(value, customizeKey)
       } else if (type === 'name') {
         const source = parseJsSyntax(value, rule, sourceContent)
-        log.info('107')
+        log.debug('107')
         str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`
-        log.info(str)
+        log.debug(str)
       } else if (type === COMMENT_TYPE) {
         // 形如{{!xxxx}}这种形式，在mustache里属于注释语法
         const source = parseJsSyntax(`!${value}`, rule, sourceContent)
@@ -154,20 +154,20 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
   // const endIndex = 4
   // const startIndex = attrValue.indexOf('desc:')
   // const cn = attrValue.slice(startIndex + 7, -endIndex)
-  log.success('attrValue')
-  log.success(attrValue)
+  log.debug('attrValue')
+  log.debug(attrValue)
   // 普通的是$t({ key: '', desc: '中文' })，所以找的是第-4个字符
   const cn = extractDescValue(attrValue)
-  // log.success('222' + cn)
-  // log.success(JSON.stringify(sourceContent))
+  // log.debug('222' + cn)
+  // log.debug(JSON.stringify(sourceContent))
   const enVal =
     sourceContent[cn] ||
     getDeepObjVal(sourceContent, cn) ||
     sourceContent[removeLineBreaksInTag(escapeQuotes(cn))] ||
     getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(cn))) ||
     String(Math.random() * 10000) + 'debug145'
-  // log.success('enVal')
-  // log.success(enVal)
+  // log.debug('enVal')
+  // log.debug(enVal)
   const key = uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(0, 6)
   // 如果key已经是有值的了，忽略
   // if (attrValue.indexOf("key: ''") !== -1) {
@@ -179,8 +179,8 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
   //   }
   // }
   const newValue = attrValue.replace("key: ''", `key: '${key}-${enVal}'`)
-  log.success('newValue:::')
-  log.success(newValue)
+  log.debug('newValue:::')
+  log.debug(newValue)
   if (enVal) {
     currCollector.add(key, rule?.customizeKey, cn)
   }
@@ -212,7 +212,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
 
     let targetKey = "''"
     if (isTransformKey) {
-      // console.log(
+      // log.debug(
       //   '`${customizeKey(value, currCollector.getCurrentCollectorPath())}`',
       //   `${customizeKey(value, currCollector.getCurrentCollectorPath())}`
       // )
@@ -223,7 +223,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
     //   ? sourceContent[`${customizeKey(value, currCollector.getCurrentCollectorPath())}`] || "''"
     //   : "''"
 
-    // console.log('getReplaceValue: start', targetKey)
+    // log.debug('getReplaceValue: start', targetKey)
 
     // let expression = sourceContent
     //   ? value
@@ -240,18 +240,18 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
       currCollector.getCurrentCollectorPath()
     )}'})`
 
-    // console.log('getReplaceValue: end', expression)
+    // log.debug('getReplaceValue: end', expression)
 
     // 属性里的$t('')转成$t(``)，并把双引号转成单引号
     if (isAttribute) {
-      // console.log('是否但双引号转换---before', expression)
+      // log.debug('是否但双引号转换---before', expression)
       // 如果有单引号，没有`则
       // if (expression.indexOf("'") > -1 && expression.indexOf('`') === -1) {
       //   expression = expression.replace(/"/g, "'")
       // } else {
       //   expression = expression.replace(/'/g, '`').replace(/"/g, "'")
       // }
-      // console.log('是否但双引号转换---after', expression)
+      // log.debug('是否但双引号转换---after', expression)
     }
 
     return expression
@@ -274,7 +274,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
     attributes: Record<string, string | undefined>,
     sourceContent?: JsonContent
   ): string {
-    // console.log('parseTagAttribute', attributes)
+    // log.debug('parseTagAttribute', attributes)
     let attrs = ''
     for (const key in attributes) {
       const attrValue = attributes[key]
@@ -284,16 +284,16 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         attrs += ` ${key} `
       } else if (includeChinese(attrValue) && isVueDirective) {
         const source = parseJsSyntax(attrValue, rule, sourceContent)
-        log.info('a')
-        // console.log('isVueDirective, source----', source)
+        log.debug('a')
+        // log.debug('isVueDirective, source----', source)
         // 处理属性类似于:xx="'xx'"，这种属性值不是js表达式的情况。attrValue === source即属性值不是js表达式
         // !hasTransformed()是为了排除，类似:xx="$t('xx')"这种已经转化过的情况。这种情况不需要二次处理
         if (attrValue === source && !hasTransformed(source, functionNameInTemplate ?? '')) {
-          // console.log(
+          // log.debug(
           //   'parseTagAttribute不需要二次处理 removeQuotes(attrValue)',
           //   removeQuotes(attrValue)
           // )
-          log.info('b')
+          log.debug('b')
 
           currCollector.add(
             removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue),
@@ -304,34 +304,34 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
             removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue)
           )
           attrs += ` ${key}="${expression}" `
-          log.info(attrs)
+          log.debug(attrs)
         } else {
-          log.info('c')
+          log.debug('c')
 
           attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `
-          log.info(attrs)
+          log.debug(attrs)
         }
       } else if (includeChinese(attrValue) && !isVueDirective) {
         // 包含中文且非指令
         const expression = getReplaceValue(attrValue, true)
         attrs += ` :${key}="${expression}" `
-        // console.log('parseTagAttribute 包含中文且非指令:::::attrValue', attrValue)
+        // log.debug('parseTagAttribute 包含中文且非指令:::::attrValue', attrValue)
 
         currCollector.add(attrValue, customizeKey)
       } else if (attrValue === '') {
         // 这里key=''是因为之后还会被pretttier处理一遍，所以写死单引号没什么影响
-        // console.log('单引号？')
+        // log.debug('单引号？')
         attrs += `${key}='' `
       } else {
-        // console.log('其他情况23666666666')
-        log.info('d')
+        // log.debug('其他情况23666666666')
+        log.debug('d')
 
         attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `
-        log.info(attrs)
+        log.debug(attrs)
       }
     }
-    log.info('end')
-    log.info(attrs)
+    log.debug('end')
+    log.debug(attrs)
 
     return attrs
   }
@@ -382,15 +382,14 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         // 重置属性缓存
         attrsCache = {}
         htmlString += `<${tagName} ${attrs}>`
-        log.info('htmlString::')
-        log.info(htmlString)
+        log.debug('htmlString::')
+        log.debug(htmlString)
       },
 
       onattribute(name, value, quote) {
-        console.log('onattribute')
-        console.log(name)
-        console.log(value)
-        console.log(quote)
+        log.debug('onattribute')
+        log.debug(name)
+        log.debug(value)
         if (value) {
           attrsCache[name] = value
         } else {
@@ -400,8 +399,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
             attrsCache[name] = value
           }
         }
-        console.log('----')
-        console.log(attrsCache)
+        log.debug('----')
       },
 
       ontext(text) {
@@ -477,8 +475,8 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
 
   parser.write(code)
   parser.end()
-  log.success('htmlString477:')
-  log.success(htmlString)
+  log.debug('htmlString477:')
+  log.debug(htmlString)
   return htmlString
 }
 
@@ -606,8 +604,8 @@ function generateSource(
 ): string {
   const wrapperTemplate = getWrapperTemplate(sfcBlock)
   const source = handler(sfcBlock.content, rule, sourceContent)
-  log.success('source::')
-  log.success(source)
+  log.debug('source::')
+  log.debug(source)
   return ejs.render(wrapperTemplate, {
     code: source,
   })
@@ -645,7 +643,7 @@ function transformVue(
 } {
   const { rule, filePath, sourceContent, collector } = options
   currCollector = collector || currCollector || Collector.getInstance()
-  // console.log('transformVue-----start')
+  // log.debug('transformVue-----start')
 
   const { descriptor, errors } = parse(code)
   if (errors.length > 0) {
@@ -666,8 +664,8 @@ function transformVue(
 
   if (template) {
     templateCode = generateSource(template, handleTemplate, rule, sourceContent)
-    log.info('666')
-    log.info(templateCode)
+    log.debug('666')
+    log.debug(templateCode)
   }
 
   if (script) {
@@ -694,12 +692,12 @@ function transformVue(
     script: scriptCode,
     style: stylesCode,
   }
-  log.info('tagMap::::')
-  log.info(JSON.stringify(tagMap))
+  log.debug('tagMap::::')
+  log.debug(JSON.stringify(tagMap))
   const tagOrder = StateManager.getToolConfig().rules.vue.tagOrder
   code = mergeCode(tagOrder, tagMap)
-  log.info('code::::')
-  log.info(code)
+  log.debug('code::::')
+  log.debug(code)
   if (fileComment) {
     code = fileComment + code
   }

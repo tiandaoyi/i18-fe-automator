@@ -200,8 +200,8 @@ class Translator {
   async translate(dictionary: Record<string, string>): Promise<Record<string, string>> {
     const allTextArr = Object.keys(dictionary).map((key) => dictionary[key])
     let restTextBundleArr = allTextArr
-    log.success(`allTextArr:${allTextArr.length}`)
-    log.success(`restTextBundleArr:${restTextBundleArr.length}`)
+    log.debug(`allTextArr:${allTextArr.length}`)
+    log.debug(`restTextBundleArr:${restTextBundleArr.length}`)
 
     const translationCount = 100
     let startIndex = 0
