@@ -109,7 +109,9 @@ function parseTextNode(text, rule, getReplaceValue, customizeKey, sourceContent)
             }
             else if (type === 'name') {
                 const source = parseJsSyntax(value, rule, sourceContent);
-                str += `{{${getCnToEn(source, sourceContent).newValue}}}`;
+                log_1.default.info('107');
+                str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`;
+                log_1.default.info(str);
             }
             else if (type === COMMENT_TYPE) {
                 // 形如{{!xxxx}}这种形式，在mustache里属于注释语法
@@ -132,7 +134,19 @@ function parseTextNode(text, rule, getReplaceValue, customizeKey, sourceContent)
     }
     return str;
 }
-function getCnToEn(attrValue, sourceContent) {
+function extractDescValue(jsCode) {
+    // 使用正则表达式匹配包含 `desc` 属性的表达式
+    const regex = /{[\s\S]*?desc:\s*'([^']*)'[\s\S]*?}/g;
+    const descValues = [];
+    let match;
+    while ((match = regex.exec(jsCode)) !== null) {
+        // 将匹配到的 `desc` 属性的值添加到数组中
+        const descValue = match[1];
+        descValues.push(descValue);
+    }
+    return descValues[0];
+}
+function getCnToEn(attrValue, rule, sourceContent) {
     // @TODO: 优化
     if (!sourceContent || !attrValue) {
         return {
@@ -142,15 +156,22 @@ function getCnToEn(attrValue, sourceContent) {
             newValue: attrValue,
         };
     }
-    const endIndex = 4;
-    const startIndex = attrValue.indexOf('desc:');
-    const cn = attrValue.slice(startIndex + 7, -endIndex);
-    log_1.default.success('222' + cn);
+    // const endIndex = 4
+    // const startIndex = attrValue.indexOf('desc:')
+    // const cn = attrValue.slice(startIndex + 7, -endIndex)
+    log_1.default.success('attrValue');
+    log_1.default.success(attrValue);
+    // 普通的是$t({ key: '', desc: '中文' })，所以找的是第-4个字符
+    const cn = extractDescValue(attrValue);
+    // log.success('222' + cn)
+    // log.success(JSON.stringify(sourceContent))
     const enVal = sourceContent[cn] ||
         getDeepObjVal(sourceContent, cn) ||
         sourceContent[(0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(cn))] ||
         getDeepObjVal(sourceContent, (0, removeLineBreaksInTag_1.removeLineBreaksInTag)((0, escapeQuotes_1.escapeQuotes)(cn))) ||
         String(Math.random() * 10000) + 'debug145';
+    // log.success('enVal')
+    // log.success(enVal)
     const key = (0, uuid_1.v5)(currCollector.getCurrentCollectorPath(), uuid_1.v5.URL).slice(0, 6);
     // 如果key已经是有值的了，忽略
     // if (attrValue.indexOf("key: ''") !== -1) {
@@ -162,6 +183,11 @@ function getCnToEn(attrValue, sourceContent) {
     //   }
     // }
     const newValue = attrValue.replace("key: ''", `key: '${key}-${enVal}'`);
+    log_1.default.success('newValue:::');
+    log_1.default.success(newValue);
+    if (enVal) {
+        currCollector.add(key, rule === null || rule === void 0 ? void 0 : rule.customizeKey, cn);
+    }
     return {
         source: attrValue,
         enKey: attrValue,
@@ -244,6 +270,7 @@ function handleTemplate(code, rule, sourceContent) {
             }
             else if ((0, includeChinese_1.includeChinese)(attrValue) && isVueDirective) {
                 const source = parseJsSyntax(attrValue, rule, sourceContent);
+                log_1.default.info('a');
                 // console.log('isVueDirective, source----', source)
                 // 处理属性类似于:xx="'xx'"，这种属性值不是js表达式的情况。attrValue === source即属性值不是js表达式
                 // !hasTransformed()是为了排除，类似:xx="$t('xx')"这种已经转化过的情况。这种情况不需要二次处理
@@ -252,12 +279,16 @@ function handleTemplate(code, rule, sourceContent) {
                     //   'parseTagAttribute不需要二次处理 removeQuotes(attrValue)',
                     //   removeQuotes(attrValue)
                     // )
-                    currCollector.add(removeQuotes(getCnToEn(attrValue, sourceContent).newValue), customizeKey, getCnToEn(attrValue, sourceContent).cn);
-                    const expression = getReplaceValue(removeQuotes(getCnToEn(attrValue, sourceContent).newValue));
+                    log_1.default.info('b');
+                    currCollector.add(removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue), customizeKey, getCnToEn(attrValue, rule, sourceContent).cn);
+                    const expression = getReplaceValue(removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue));
                     attrs += ` ${key}="${expression}" `;
+                    log_1.default.info(attrs);
                 }
                 else {
-                    attrs += ` ${key}="${getCnToEn(source, sourceContent).newValue}" `;
+                    log_1.default.info('c');
+                    attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `;
+                    log_1.default.info(attrs);
                 }
             }
             else if ((0, includeChinese_1.includeChinese)(attrValue) && !isVueDirective) {
@@ -274,9 +305,13 @@ function handleTemplate(code, rule, sourceContent) {
             }
             else {
                 // console.log('其他情况23666666666')
-                attrs += ` ${key}="${getCnToEn(attrValue, sourceContent).newValue}" `;
+                log_1.default.info('d');
+                attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `;
+                log_1.default.info(attrs);
             }
         }
+        log_1.default.info('end');
+        log_1.default.info(attrs);
         return attrs;
     }
     // 转义特殊字符
@@ -315,8 +350,14 @@ function handleTemplate(code, rule, sourceContent) {
             // 重置属性缓存
             attrsCache = {};
             htmlString += `<${tagName} ${attrs}>`;
+            log_1.default.info('htmlString::');
+            log_1.default.info(htmlString);
         },
         onattribute(name, value, quote) {
+            console.log('onattribute');
+            console.log(name);
+            console.log(value);
+            console.log(quote);
             if (value) {
                 attrsCache[name] = value;
             }
@@ -328,6 +369,8 @@ function handleTemplate(code, rule, sourceContent) {
                     attrsCache[name] = value;
                 }
             }
+            console.log('----');
+            console.log(attrsCache);
         },
         ontext(text) {
             text = escapeSpecialChar(text);
@@ -382,6 +425,8 @@ function handleTemplate(code, rule, sourceContent) {
     });
     parser.write(code);
     parser.end();
+    log_1.default.success('htmlString477:');
+    log_1.default.success(htmlString);
     return htmlString;
 }
 // 找出@Component位置
@@ -490,6 +535,8 @@ function getWrapperTemplate(sfcBlock) {
 function generateSource(sfcBlock, handler, rule, sourceContent) {
     const wrapperTemplate = getWrapperTemplate(sfcBlock);
     const source = handler(sfcBlock.content, rule, sourceContent);
+    log_1.default.success('source::');
+    log_1.default.success(source);
     return ejs_1.default.render(wrapperTemplate, {
         code: source,
     });
@@ -532,6 +579,8 @@ function transformVue(code, options) {
     const fileComment = getFileComment(descriptor);
     if (template) {
         templateCode = generateSource(template, handleTemplate, rule, sourceContent);
+        log_1.default.info('666');
+        log_1.default.info(templateCode);
     }
     if (script) {
         scriptCode = generateSource(script, handleScript, rule, sourceContent);
@@ -554,8 +603,12 @@ function transformVue(code, options) {
         script: scriptCode,
         style: stylesCode,
     };
+    log_1.default.info('tagMap::::');
+    log_1.default.info(JSON.stringify(tagMap));
     const tagOrder = stateManager_1.default.getToolConfig().rules.vue.tagOrder;
     code = mergeCode(tagOrder, tagMap);
+    log_1.default.info('code::::');
+    log_1.default.info(code);
     if (fileComment) {
         code = fileComment + code;
     }

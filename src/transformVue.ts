@@ -104,7 +104,9 @@ function parseTextNode(
         currCollector.add(value, customizeKey)
       } else if (type === 'name') {
         const source = parseJsSyntax(value, rule, sourceContent)
-        str += `{{${getCnToEn(source, sourceContent).newValue}}}`
+        log.info('107')
+        str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`
+        log.info(str)
       } else if (type === COMMENT_TYPE) {
         // 形如{{!xxxx}}这种形式，在mustache里属于注释语法
         const source = parseJsSyntax(`!${value}`, rule, sourceContent)
@@ -124,7 +126,22 @@ function parseTextNode(
   return str
 }
 
-function getCnToEn(attrValue: string, sourceContent?: JsonContent) {
+function extractDescValue(jsCode: string) {
+  // 使用正则表达式匹配包含 `desc` 属性的表达式
+  const regex = /{[\s\S]*?desc:\s*'([^']*)'[\s\S]*?}/g
+
+  const descValues = []
+  let match
+  while ((match = regex.exec(jsCode)) !== null) {
+    // 将匹配到的 `desc` 属性的值添加到数组中
+    const descValue = match[1]
+    descValues.push(descValue)
+  }
+
+  return descValues[0]
+}
+
+function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceContent?: JsonContent) {
   // @TODO: 优化
   if (!sourceContent || !attrValue) {
     return {
@@ -134,16 +151,23 @@ function getCnToEn(attrValue: string, sourceContent?: JsonContent) {
       newValue: attrValue,
     }
   }
-  const endIndex = 4
-  const startIndex = attrValue.indexOf('desc:')
-  const cn = attrValue.slice(startIndex + 7, -endIndex)
-  log.success('222' + cn)
+  // const endIndex = 4
+  // const startIndex = attrValue.indexOf('desc:')
+  // const cn = attrValue.slice(startIndex + 7, -endIndex)
+  log.success('attrValue')
+  log.success(attrValue)
+  // 普通的是$t({ key: '', desc: '中文' })，所以找的是第-4个字符
+  const cn = extractDescValue(attrValue)
+  // log.success('222' + cn)
+  // log.success(JSON.stringify(sourceContent))
   const enVal =
     sourceContent[cn] ||
     getDeepObjVal(sourceContent, cn) ||
     sourceContent[removeLineBreaksInTag(escapeQuotes(cn))] ||
     getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(cn))) ||
     String(Math.random() * 10000) + 'debug145'
+  // log.success('enVal')
+  // log.success(enVal)
   const key = uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(0, 6)
   // 如果key已经是有值的了，忽略
   // if (attrValue.indexOf("key: ''") !== -1) {
@@ -155,6 +179,11 @@ function getCnToEn(attrValue: string, sourceContent?: JsonContent) {
   //   }
   // }
   const newValue = attrValue.replace("key: ''", `key: '${key}-${enVal}'`)
+  log.success('newValue:::')
+  log.success(newValue)
+  if (enVal) {
+    currCollector.add(key, rule?.customizeKey, cn)
+  }
   return {
     source: attrValue,
     enKey: attrValue,
@@ -255,6 +284,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         attrs += ` ${key} `
       } else if (includeChinese(attrValue) && isVueDirective) {
         const source = parseJsSyntax(attrValue, rule, sourceContent)
+        log.info('a')
         // console.log('isVueDirective, source----', source)
         // 处理属性类似于:xx="'xx'"，这种属性值不是js表达式的情况。attrValue === source即属性值不是js表达式
         // !hasTransformed()是为了排除，类似:xx="$t('xx')"这种已经转化过的情况。这种情况不需要二次处理
@@ -263,17 +293,23 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
           //   'parseTagAttribute不需要二次处理 removeQuotes(attrValue)',
           //   removeQuotes(attrValue)
           // )
+          log.info('b')
+
           currCollector.add(
-            removeQuotes(getCnToEn(attrValue, sourceContent).newValue),
+            removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue),
             customizeKey,
-            getCnToEn(attrValue, sourceContent).cn
+            getCnToEn(attrValue, rule, sourceContent).cn
           )
           const expression = getReplaceValue(
-            removeQuotes(getCnToEn(attrValue, sourceContent).newValue)
+            removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue)
           )
           attrs += ` ${key}="${expression}" `
+          log.info(attrs)
         } else {
-          attrs += ` ${key}="${getCnToEn(source, sourceContent).newValue}" `
+          log.info('c')
+
+          attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `
+          log.info(attrs)
         }
       } else if (includeChinese(attrValue) && !isVueDirective) {
         // 包含中文且非指令
@@ -288,9 +324,15 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         attrs += `${key}='' `
       } else {
         // console.log('其他情况23666666666')
-        attrs += ` ${key}="${getCnToEn(attrValue, sourceContent).newValue}" `
+        log.info('d')
+
+        attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `
+        log.info(attrs)
       }
     }
+    log.info('end')
+    log.info(attrs)
+
     return attrs
   }
 
@@ -340,9 +382,15 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         // 重置属性缓存
         attrsCache = {}
         htmlString += `<${tagName} ${attrs}>`
+        log.info('htmlString::')
+        log.info(htmlString)
       },
 
       onattribute(name, value, quote) {
+        console.log('onattribute')
+        console.log(name)
+        console.log(value)
+        console.log(quote)
         if (value) {
           attrsCache[name] = value
         } else {
@@ -352,6 +400,8 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
             attrsCache[name] = value
           }
         }
+        console.log('----')
+        console.log(attrsCache)
       },
 
       ontext(text) {
@@ -427,6 +477,8 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
 
   parser.write(code)
   parser.end()
+  log.success('htmlString477:')
+  log.success(htmlString)
   return htmlString
 }
 
@@ -554,6 +606,8 @@ function generateSource(
 ): string {
   const wrapperTemplate = getWrapperTemplate(sfcBlock)
   const source = handler(sfcBlock.content, rule, sourceContent)
+  log.success('source::')
+  log.success(source)
   return ejs.render(wrapperTemplate, {
     code: source,
   })
@@ -612,6 +666,8 @@ function transformVue(
 
   if (template) {
     templateCode = generateSource(template, handleTemplate, rule, sourceContent)
+    log.info('666')
+    log.info(templateCode)
   }
 
   if (script) {
@@ -638,8 +694,12 @@ function transformVue(
     script: scriptCode,
     style: stylesCode,
   }
+  log.info('tagMap::::')
+  log.info(JSON.stringify(tagMap))
   const tagOrder = StateManager.getToolConfig().rules.vue.tagOrder
   code = mergeCode(tagOrder, tagMap)
+  log.info('code::::')
+  log.info(code)
   if (fileComment) {
     code = fileComment + code
   }

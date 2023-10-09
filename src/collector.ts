@@ -42,16 +42,22 @@ class Collector {
   }
 
   add(value: string, customizeKeyFn: CustomizeKey, oldChinese?: string) {
-    // console.log('add,value ', value)
-    const formattedValue = removeLineBreaksInTag(value)
-    const customizeKey = customizeKeyFn(escapeQuotes(formattedValue), this.currentFilePath) // key中不能包含回车
-    log.verbose('提取中文：', formattedValue)
-    this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}") // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
+    if (!oldChinese) {
+      // console.log('add,value ', value)
+      const formattedValue = removeLineBreaksInTag(value)
+      const customizeKey = customizeKeyFn(escapeQuotes(formattedValue), this.currentFilePath) // key中不能包含回车
+      log.verbose('提取中文：', formattedValue)
+      this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}") // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
+      // this.countOfAdditions++
+      this.currentFileKeyMap[customizeKey] = formattedValue
+    }
     this.countOfAdditions++
-    this.currentFileKeyMap[customizeKey] = formattedValue
 
+    // oldChinese: 纯中文部分
+    // value: [6位hash]-[desc的英文]
     if (oldChinese && value && !includeChinese(value)) {
-      this.keyValueMap[customizeKey] = oldChinese
+      // this.keyValueMap[customizeKey] = oldChinese
+      this.keyValueMap[value] = oldChinese
     }
   }
 

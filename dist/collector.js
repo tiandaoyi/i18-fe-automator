@@ -38,15 +38,21 @@ class Collector {
         this.keyValueMap = {};
     }
     add(value, customizeKeyFn, oldChinese) {
-        // console.log('add,value ', value)
-        const formattedValue = (0, removeLineBreaksInTag_1.removeLineBreaksInTag)(value);
-        const customizeKey = customizeKeyFn((0, escapeQuotes_1.escapeQuotes)(formattedValue), this.currentFilePath); // key中不能包含回车
-        log_1.default.verbose('提取中文：', formattedValue);
-        this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}"); // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
+        if (!oldChinese) {
+            // console.log('add,value ', value)
+            const formattedValue = (0, removeLineBreaksInTag_1.removeLineBreaksInTag)(value);
+            const customizeKey = customizeKeyFn((0, escapeQuotes_1.escapeQuotes)(formattedValue), this.currentFilePath); // key中不能包含回车
+            log_1.default.verbose('提取中文：', formattedValue);
+            this.keyMap[customizeKey] = formattedValue.replace('|', "{'|'}"); // '|' 管道符在vue-i18n表示复数形式,需要特殊处理。见https://vue-i18n.intlify.dev/guide/essentials/pluralization.html
+            // this.countOfAdditions++
+            this.currentFileKeyMap[customizeKey] = formattedValue;
+        }
         this.countOfAdditions++;
-        this.currentFileKeyMap[customizeKey] = formattedValue;
+        // oldChinese: 纯中文部分
+        // value: [6位hash]-[desc的英文]
         if (oldChinese && value && !(0, includeChinese_1.includeChinese)(value)) {
-            this.keyValueMap[customizeKey] = oldChinese;
+            // this.keyValueMap[customizeKey] = oldChinese
+            this.keyValueMap[value] = oldChinese;
         }
     }
     getCurrentFileKeyMap() {
