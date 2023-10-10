@@ -54,9 +54,9 @@ function convertToCamelCase(str: string | StringObject) {
     return str
   }
   // 去除标点符号和空格
-  const cleanedStr = str.replace(/[^\w\s]|_/g, '')
+  // const cleanedStr = str.replace(/[^\w\s]|_/g, '')
   // 将字符串按空格分割为单词数组
-  const words = cleanedStr.split(/\s+/)
+  const words = str.split(/\s+/)
   // 转换为大驼峰格式
   const camelCaseStr = words
     .map((word) => {
@@ -149,7 +149,7 @@ export default async function (
         if (typeof fileContent[key] === 'string') {
           // const item = convertToCamelCase(fileContent[key])
           const item = fileContent[key]
-          obj[key] = item
+          obj[key] = convertToCamelCase(item) as string
         } else {
           obj[key] = fileContent[key]
         }
