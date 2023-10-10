@@ -10,7 +10,7 @@ function getCommonRule(): Rule {
   return {
     caller: '',
     // functionName: 't',
-    functionName: '$t',
+    functionName: '$hxt',
     customizeKey: getCustomizeKey,
     // importDeclaration: 'import { t } from "i18n"',
     importDeclaration: '',
@@ -36,8 +36,8 @@ const config: Config = {
     },
     vue: {
       caller: 'this',
-      functionNameInTemplate: '$t',
-      functionNameInScript: '$t',
+      functionNameInTemplate: '$hxt',
+      functionNameInScript: '$hxt',
       customizeKey: getCustomizeKey,
       importDeclaration: '',
       tagOrder: ['template', 'script', 'style'],

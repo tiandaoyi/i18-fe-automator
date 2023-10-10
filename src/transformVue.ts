@@ -156,7 +156,7 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
   // const cn = attrValue.slice(startIndex + 7, -endIndex)
   log.debug('attrValue')
   log.debug(attrValue)
-  // 普通的是$t({ key: '', desc: '中文' })，所以找的是第-4个字符
+  // 普通的是$hxt({ key: '', desc: '中文' })，所以找的是第-4个字符
   const cn = extractDescValue(attrValue)
   // log.debug('222' + cn)
   // log.debug(JSON.stringify(sourceContent))
@@ -202,7 +202,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
     // const oldValue = value
     value = removeLineBreaksInTag(escapeQuotes(value))
 
-    // 表达式结构 $t('xx')
+    // 表达式结构 $hxt('xx')
     // let expression = `${functionNameInTemplate}('${customizeKey(
     //   value,
     //   currCollector.getCurrentCollectorPath()
@@ -242,7 +242,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
 
     // log.debug('getReplaceValue: end', expression)
 
-    // 属性里的$t('')转成$t(``)，并把双引号转成单引号
+    // 属性里的$hxt('')转成$hxt(``)，并把双引号转成单引号
     if (isAttribute) {
       // log.debug('是否但双引号转换---before', expression)
       // 如果有单引号，没有`则
@@ -287,7 +287,7 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
         log.debug('a')
         // log.debug('isVueDirective, source----', source)
         // 处理属性类似于:xx="'xx'"，这种属性值不是js表达式的情况。attrValue === source即属性值不是js表达式
-        // !hasTransformed()是为了排除，类似:xx="$t('xx')"这种已经转化过的情况。这种情况不需要二次处理
+        // !hasTransformed()是为了排除，类似:xx="$hxt('xx')"这种已经转化过的情况。这种情况不需要二次处理
         if (attrValue === source && !hasTransformed(source, functionNameInTemplate ?? '')) {
           // log.debug(
           //   'parseTagAttribute不需要二次处理 removeQuotes(attrValue)',

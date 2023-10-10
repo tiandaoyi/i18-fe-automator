@@ -49,14 +49,14 @@ export default {
 
 ```vue
 <template>
-  <div :label="$t({key: 'ce5b42-label', desc:'标签'})" :title="1 + $t(${key: 'tx2hco-title', desc: '标题'})">
+  <div :label="$hxt({key: 'ce5b42-label', desc:'标签'})" :title="1 + $hxt(${key: 'tx2hco-title', desc: '标题'})">
   </div>
 </template>
 <script>
 export default {
   methods: {
     handleClick() {
-      console.log($t({key: 'gm319e-hello', desc: '你好'}))
+      console.log($hxt({key: 'gm319e-hello', desc: '你好'}))
     },
   },
 }

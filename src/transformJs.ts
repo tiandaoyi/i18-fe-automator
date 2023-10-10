@@ -499,22 +499,22 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
             return
           }
 
-          // 无调用对象的情况，例如$t('xx') 并且没有源内容
+          // 无调用对象的情况，例如$hxt('xx') 并且没有源内容
           if (callee.type === 'Identifier' && callee.name === functionName && !sourceContent) {
             path.skip()
             return
           }
 
-          // 有调用对象的情况，例如this.$t('xx')、i18n.$t('xx)
+          // 有调用对象的情况，例如this.$hxt('xx')、i18n.$hxt('xx)
           if (callee.type === 'MemberExpression' && !sourceContent) {
             if (callee.property && callee.property.type === 'Identifier') {
               if (callee.property.name === functionName) {
-                // 处理形如i18n.$t('xx)的情况
+                // 处理形如i18n.$hxt('xx)的情况
                 if (callee.object.type === 'Identifier' && callee.object.name === caller) {
                   path.skip()
                   return
                 }
-                // 处理形如this.$t('xx')的情况
+                // 处理形如this.$hxt('xx')的情况
                 if (callee.object.type === 'ThisExpression' && caller === 'this') {
                   path.skip()
                   return
