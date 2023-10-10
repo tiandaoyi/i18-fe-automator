@@ -182,8 +182,8 @@ class Translator {
     async translate(dictionary) {
         const allTextArr = Object.keys(dictionary).map((key) => dictionary[key]);
         let restTextBundleArr = allTextArr;
-        log_1.default.success(`allTextArr:${allTextArr.length}`);
-        log_1.default.success(`restTextBundleArr:${restTextBundleArr.length}`);
+        log_1.default.debug(`allTextArr:${allTextArr.length}`);
+        log_1.default.debug(`restTextBundleArr:${restTextBundleArr.length}`);
         const translationCount = 100;
         let startIndex = 0;
         const result = [];

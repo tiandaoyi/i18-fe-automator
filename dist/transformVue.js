@@ -306,7 +306,8 @@ function handleTemplate(code, rule, sourceContent) {
             else {
                 // log.debug('其他情况23666666666')
                 log_1.default.debug('d');
-                attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `;
+                attrs += ` ${key}="${attrValue}" `;
+                // attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `
                 log_1.default.debug(attrs);
             }
         }

@@ -325,8 +325,8 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
       } else {
         // log.debug('其他情况23666666666')
         log.debug('d')
-
-        attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `
+        attrs += ` ${key}="${attrValue}" `
+        // attrs += ` ${key}="${getCnToEn(attrValue, rule, sourceContent).newValue}" `
         log.debug(attrs)
       }
     }
