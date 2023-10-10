@@ -1,6 +1,6 @@
 # 介绍
 
-前端代码国际化工具，自动转换$t格式。
+前端代码国际化工具，自动转换$hxt格式。
 
 ## 安装
 
@@ -46,17 +46,18 @@ export default {
 ```
 
 转换后
+> 这里的ce5b42是6位hash随机数，以页面路径唯一，用来区分同一个项目下不同页面的相同中文情况，方便产品进行处理
 
 ```vue
 <template>
-  <div :label="$hxt({key: 'ce5b42-label', desc:'标签'})" :title="1 + $hxt(${key: 'tx2hco-title', desc: '标题'})">
+  <div :label="$hxt({key: 'ce5b42-label', desc:'标签'})" :title="1 + $hxt(${key: 'ce5b42-title', desc: '标题'})">
   </div>
 </template>
 <script>
 export default {
   methods: {
     handleClick() {
-      console.log($hxt({key: 'gm319e-hello', desc: '你好'}))
+      console.log($hxt({key: 'ce5b42-hello', desc: '你好'}))
     },
   },
 }
