@@ -105,7 +105,16 @@ function parseTextNode(
       } else if (type === 'name') {
         const source = parseJsSyntax(value, rule, sourceContent)
         log.debug('107')
-        str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`
+        // 这个type是name，说明是表达式，可以把表达式按$hxt({ key: '', desc: 'xx' })进行分割，遍历处理，再组装。
+        // str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`
+        const innerContent = sourceContent
+          ? source.replace(
+              /\$hxt\(([^()]*)\)/g,
+              (match) => getCnToEn(match, rule, sourceContent).newValue
+            )
+          : source
+        str += `{{${innerContent}}}`
+        log.debug('parseTextNode:type === name, includeChinese')
         log.debug(str)
       } else if (type === COMMENT_TYPE) {
         // 形如{{!xxxx}}这种形式，在mustache里属于注释语法
@@ -142,7 +151,7 @@ function extractDescValue(jsCode: string) {
 }
 
 function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceContent?: JsonContent) {
-  // @TODO: 优化
+  // 如果不存在中英文映射的json，直接返回
   if (!sourceContent || !attrValue) {
     return {
       source: attrValue,
@@ -151,39 +160,39 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
       newValue: attrValue,
     }
   }
-  // const endIndex = 4
-  // const startIndex = attrValue.indexOf('desc:')
-  // const cn = attrValue.slice(startIndex + 7, -endIndex)
   log.debug('attrValue')
   log.debug(attrValue)
-  // 普通的是$hxt({ key: '', desc: '中文' })，所以找的是第-4个字符
+  // 方法将$hxt({ key: '', desc: '中文' })，转成'中文'
   const cn = extractDescValue(attrValue)
-  // log.debug('222' + cn)
-  // log.debug(JSON.stringify(sourceContent))
+
+  log.debug(JSON.stringify(sourceContent))
+  // 找到中文对应的英文
   const enVal =
     sourceContent[cn] ||
     getDeepObjVal(sourceContent, cn) ||
     sourceContent[removeLineBreaksInTag(escapeQuotes(cn))] ||
     getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(cn))) ||
-    String(Math.random() * 10000) + 'debug145'
-  // log.debug('enVal')
-  // log.debug(enVal)
+    String(Math.random() * 10000) + 'htmldebug'
+  log.debug('enVal')
+  log.debug(JSON.stringify(enVal))
   const key = uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(0, 6)
   // 如果key已经是有值的了，忽略
-  // if (attrValue.indexOf("key: ''") !== -1) {
-  //   return {
-  //     source: attrValue,
-  //     enKey: attrValue,
-  //     cn: attrValue,
-  //     newValue: attrValue,
-  //   }
-  // }
-  const newValue = attrValue.replace("key: ''", `key: '${key}-${enVal}'`)
-  log.debug('newValue:::')
+  const keyAddEnVal = `${key}-${enVal}`
+  // 将"false ? $hxt({ key: '', desc: '我很好' }) : $hxt({ key: '', desc: '我不好' })"这种字符串
+
+  const newValue = attrValue.replace("key: ''", `key: '${keyAddEnVal}'`)
+  log.debug('newValue::::')
   log.debug(newValue)
-  if (enVal) {
-    currCollector.add(key, rule?.customizeKey, cn)
-  }
+  // log.debug(String(185))
+  // log.debug(enVal)
+  // if (enVal) {
+  // log.debug('enval:')
+  // log.debug(`${key}-${enVal}`)
+  // log.debug(cn)
+  log.debug(keyAddEnVal)
+  // log.debug(currCollector)
+  currCollector.add(keyAddEnVal, rule?.customizeKey, cn)
+  // }
   return {
     source: attrValue,
     enKey: attrValue,
@@ -294,21 +303,30 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
           //   removeQuotes(attrValue)
           // )
           log.debug('b')
-
+          // 获取中文转英文的对象
+          // attrValue可能是一段js代码，可能包含多个
+          const cnToEnObj = getCnToEn(attrValue, rule, sourceContent)
+          log.debug(JSON.stringify(cnToEnObj))
           currCollector.add(
-            removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue),
+            removeQuotes(cnToEnObj.newValue),
             customizeKey,
-            getCnToEn(attrValue, rule, sourceContent).cn
+            sourceContent ? cnToEnObj.cn : ''
           )
-          const expression = getReplaceValue(
-            removeQuotes(getCnToEn(attrValue, rule, sourceContent).newValue)
-          )
+          const expression = getReplaceValue(removeQuotes(cnToEnObj.newValue))
           attrs += ` ${key}="${expression}" `
           log.debug(attrs)
         } else {
           log.debug('c')
+          // attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `
 
-          attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `
+          const innerContent = sourceContent
+            ? source.replace(
+                /\$hxt\(([^()]*)\)/g,
+                (match) => getCnToEn(match, rule, sourceContent).newValue
+              )
+            : source
+          attrs += ` ${key}="${innerContent}" `
+
           log.debug(attrs)
         }
       } else if (includeChinese(attrValue) && !isVueDirective) {

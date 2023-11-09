@@ -63,3 +63,9 @@ export default {
 }
 </script>
 ```
+
+### 开发指南
+
+给用户看的普通日志，log.info()
+-v: 给用户看的更多日志，log.verbose()
+-d: 给开发者看的debug日志，log.debug()

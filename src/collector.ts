@@ -41,7 +41,11 @@ class Collector {
     this.keyValueMap = {}
   }
 
+  // 第三个参数可以用来判断是否第一次访问，第一次访问是无中文的，第二次访问是有中文的
   add(value: string, customizeKeyFn: CustomizeKey, oldChinese?: string) {
+    log.verbose('collector:add::')
+    log.verbose(value)
+    log.verbose(oldChinese as string)
     if (!oldChinese) {
       // console.log('add,value ', value)
       const formattedValue = removeLineBreaksInTag(value)
