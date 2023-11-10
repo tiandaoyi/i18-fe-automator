@@ -6,3 +6,4 @@ dist
 .cache
 .vscode
 locales
+*.xlsx
