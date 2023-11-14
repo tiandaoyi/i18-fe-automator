@@ -112,7 +112,9 @@ function parseTextNode(
               // /\$hxt\(([^()]*)\)/g,
               // /\$hxt\([^)]*\)/g,
               // /\$hxt\([^)]*\)\)/g,
-              /\$hxt\([^]*\)/g,
+              // /\$hxt\([^]*?\)/g,
+              // /\$hxt\([^]*?\)/g,
+              /\$hxt\([^]*?\)\s*(?=\)|\s|$)/g,
               (match) => getCnToEn(match, rule, sourceContent).newValue
             )
           : source
@@ -328,7 +330,8 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
                 // /\$hxt\(([^()]*)\)/g,
                 // /\$hxt\([^)]*\)/g,
                 // /\$hxt\([^)]*\)\)/g,
-                /\$hxt\([^]*\)/g,
+                // /\$hxt\([^]*?\)/g,
+                /\$hxt\([^]*?\)\s*(?=\)|\s|$)/g,
                 (match) => getCnToEn(match, rule, sourceContent).newValue
               )
             : source
