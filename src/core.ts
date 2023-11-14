@@ -362,7 +362,6 @@ export default async function (options: CommandOptions) {
           enCollector.getCurrentFileKeyMap(),
           sourceFilePath
         )
-        // console.log('newkeyMap-----', newkeyMap)
         enCollector.setKeyMap(newkeyMap)
         enCollector.resetCurrentFileKeyMap()
       }

@@ -133,7 +133,6 @@ export default async function (
       targetLocale,
       providerOptions: options,
     })
-    console.log('待翻译的中文包', willTranslateText)
     const incrementalTranslation = await translator.translate(willTranslateText)
     newTargetLangPack = {
       ...newTargetLangPack,

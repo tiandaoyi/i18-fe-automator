@@ -109,7 +109,10 @@ function parseTextNode(
         // str += `{{${getCnToEn(source, rule, sourceContent).newValue}}}`
         const innerContent = sourceContent
           ? source.replace(
-              /\$hxt\(([^()]*)\)/g,
+              // /\$hxt\(([^()]*)\)/g,
+              // /\$hxt\([^)]*\)/g,
+              // /\$hxt\([^)]*\)\)/g,
+              /\$hxt\([^]*\)/g,
               (match) => getCnToEn(match, rule, sourceContent).newValue
             )
           : source
@@ -152,6 +155,7 @@ function extractDescValue(jsCode: string) {
 
 function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceContent?: JsonContent) {
   // 如果不存在中英文映射的json，直接返回
+  log.debug('getCnToEn:', attrValue)
   if (!sourceContent || !attrValue) {
     return {
       source: attrValue,
@@ -165,7 +169,7 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
   // 方法将$hxt({ key: '', desc: '中文' })，转成'中文'
   const cn = extractDescValue(attrValue)
 
-  log.debug(JSON.stringify(sourceContent))
+  // log.debug(JSON.stringify(sourceContent))
   // 找到中文对应的英文
   const enVal =
     sourceContent[cn] ||
@@ -316,18 +320,21 @@ function handleTemplate(code: string, rule: Rule, sourceContent?: JsonContent): 
           attrs += ` ${key}="${expression}" `
           log.debug(attrs)
         } else {
-          log.debug('c')
+          log.debug('c', sourceContent)
           // attrs += ` ${key}="${getCnToEn(source, rule, sourceContent).newValue}" `
 
           const innerContent = sourceContent
             ? source.replace(
-                /\$hxt\(([^()]*)\)/g,
+                // /\$hxt\(([^()]*)\)/g,
+                // /\$hxt\([^)]*\)/g,
+                // /\$hxt\([^)]*\)\)/g,
+                /\$hxt\([^]*\)/g,
                 (match) => getCnToEn(match, rule, sourceContent).newValue
               )
             : source
           attrs += ` ${key}="${innerContent}" `
 
-          log.debug(attrs)
+          log.debug('attrs:::', attrs)
         }
       } else if (includeChinese(attrValue) && !isVueDirective) {
         // 包含中文且非指令

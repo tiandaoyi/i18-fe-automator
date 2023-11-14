@@ -47,7 +47,6 @@ class Collector {
     log.verbose(value)
     log.verbose(oldChinese as string)
     if (!oldChinese) {
-      // console.log('add,value ', value)
       const formattedValue = removeLineBreaksInTag(value)
       const customizeKey = customizeKeyFn(escapeQuotes(formattedValue), this.currentFilePath) // key中不能包含回车
       log.verbose('提取中文：', formattedValue)
