@@ -172,7 +172,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
   function getReplaceValue(value: string, params?: TemplateParams) {
     let targetKeyLiteral = t.stringLiteral('')
-    // log.debug('172::::targetKeyLiteral')
+    log.debug('172::::targetKeyLiteral')
     // 需要过滤处理引号和换行
     value = removeLineBreaksInTag(escapeQuotes(value))
 
@@ -188,7 +188,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         0,
         6
       )}-${uuidEnKey}`
-      // log.debug('转换uuidEnKey', uuidEnKeyStr)
+      log.debug('转换uuidEnKey', uuidEnKeyStr)
 
       targetKeyLiteral = t.stringLiteral(uuidEnKeyStr)
       currCollector.add(uuidEnKeyStr, customizeKey, value)
@@ -278,7 +278,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
         StringLiteral(path: NodePath<StringLiteral>) {
           const value = path.node.value
-          // log.debug('StringLiteral----', value)
+          log.debug('StringLiteral----', value)
           // if (isTransformKey) {
           //   path.skip()
           //   return
@@ -320,6 +320,8 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         TemplateLiteral(path: NodePath<TemplateLiteral>) {
+          log.debug('TemplateLiteral----', path)
+
           // if (isTransformKey) {
           //   path.skip()
           //   return
@@ -417,6 +419,8 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
         // 函数调用表达式
         CallExpression(path: NodePath<CallExpression>) {
+          log.debug('CallExpression----', path)
+
           const { node } = path
           const callee = node.callee
 
@@ -525,6 +529,8 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         ImportDeclaration(path: NodePath<ImportDeclaration>) {
+          log.debug('ImportDeclaration----', path)
+
           const res = importDeclaration.match(/from ["'](.*)["']/)
           const packageName = res ? res[1] : ''
 
@@ -543,6 +549,8 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         ArrowFunctionExpression(path: NodePath<ArrowFunctionExpression>) {
+          log.debug('ArrowFunctionExpression----', path)
+
           const { node } = path
           // 函数组件必须在代码最外层
           if (path.parentPath.scope.block.type !== 'Program') {
@@ -553,6 +561,8 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         FunctionExpression(path: NodePath<FunctionExpression>) {
+          log.debug('FunctionExpression----', path)
+
           const { node } = path
           // 函数组件必须在代码最外层
           if (path.parentPath.scope.block.type !== 'Program') {
