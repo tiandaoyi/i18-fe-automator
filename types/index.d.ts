@@ -68,7 +68,7 @@ export interface BaiduConfig {
   secret?: string
 }
 
-export type translatorType = 'google' | 'youdao' | 'baidu'
+export type translatorType = 'google' | 'youdao' | 'baidu' | 'chatGPT'
 export interface TranslateConfig {
   translator?: translatorType
   google?: {
@@ -76,6 +76,7 @@ export interface TranslateConfig {
   }
   youdao?: YoudaoConfig
   baidu?: BaiduConfig
+  chatGPT?: ChatGPTOption
 }
 
 export type PrettierConfig = Options | boolean

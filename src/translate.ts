@@ -1,10 +1,14 @@
 import fs from 'fs-extra'
-// import { googleTranslate, youdaoTranslate, baiduTranslate } from '@ifreeovo/translate-utils'
-import { googleTranslate, youdaoTranslate, baiduTranslate } from './translate-utils/src/index'
+import {
+  googleTranslate,
+  youdaoTranslate,
+  baiduTranslate,
+  chatGPTTranslate,
+} from './translate-utils/src/index'
 import type { TranslateConfig, StringObject, translatorType } from '../types'
 import { getAbsolutePath } from './utils/getAbsolutePath'
 import log from './utils/log'
-import { GOOGLE, YOUDAO, BAIDU } from './utils/constants'
+import { GOOGLE, YOUDAO, BAIDU, CHAT_GPT } from './utils/constants'
 import getLang from './utils/getLang'
 import StateManager from './utils/stateManager'
 import { saveLocaleFile } from './utils/saveLocaleFile'
@@ -16,12 +20,13 @@ async function translateByGoogle(
   locale: string,
   options: TranslateConfig
 ): Promise<string> {
-  if (!options.google || !options.google?.proxy) {
+  // if (!options.google || !options.google?.proxy) {
+  if (!options.google) {
     log.error('翻译失败，当前翻译器为谷歌，请完善google配置参数')
     process.exit(1)
   }
   try {
-    return await googleTranslate(word, 'zh-CN', locale, options.google.proxy)
+    return await googleTranslate(word, 'zh-CN', locale, options.google.proxy || '')
   } catch (e: any) {
     if (e.name === 'TooManyRequestsError') {
       log.error('翻译失败，请求超过谷歌api调用次数限制')
@@ -45,6 +50,23 @@ async function translateByYoudao(
     return await youdaoTranslate(word, 'zh-CN', locale, options.youdao)
   } catch (e) {
     log.error('有道翻译请求出错', e)
+    return ''
+  }
+}
+
+async function translateByChatGPT(
+  word: string,
+  locale: string,
+  options: TranslateConfig
+): Promise<string> {
+  if (!options.chatGPT || !options.chatGPT?.key) {
+    log.error('翻译失败，当前翻译器为有道，请完善youdao配置参数')
+    process.exit(1)
+  }
+  try {
+    return await chatGPTTranslate(word, 'zh-CN', locale, options.chatGPT)
+  } catch (e) {
+    log.error('chatGPT请求出错', e)
     return ''
   }
 }
@@ -90,7 +112,7 @@ export default async function (
   oldPrimaryLang: StringObject,
   options: TranslateConfig
 ) {
-  if (![GOOGLE, YOUDAO, BAIDU].includes(options.translator || '')) {
+  if (![GOOGLE, YOUDAO, BAIDU, CHAT_GPT].includes(options.translator || '')) {
     log.error('翻译失败，请确认translator参数是否配置正确')
     process.exit(1)
   }
@@ -133,32 +155,53 @@ export default async function (
       targetLocale,
       providerOptions: options,
     })
-    const incrementalTranslation = await translator.translate(willTranslateText)
+    const { incrementalTranslation, incrementalTranslationCamelCase } = await translator.translate(
+      willTranslateText
+    )
+    const otherTargetLangPack = JSON.parse(
+      JSON.stringify({
+        ...newTargetLangPack,
+        ...incrementalTranslation,
+      })
+    )
     newTargetLangPack = {
       ...newTargetLangPack,
-      ...incrementalTranslation,
+      ...incrementalTranslationCamelCase,
     }
 
+    console.log('otherTargetLangPack', otherTargetLangPack)
+    console.log('newTargetLangPack', newTargetLangPack)
+
     const fileContent = spreadObject(newTargetLangPack)
+    const otherFileContent = spreadObject(otherTargetLangPack)
     const obj: any = {}
+
+    const getObj = (targetFileContent: any, newObj: any) => {
+      newObj = JSON.parse(JSON.stringify(newObj))
+      Object.keys(targetFileContent).forEach((key) => {
+        if (typeof targetFileContent[key] === 'string') {
+          const item = targetFileContent[key]
+          newObj[key] = item
+        } else {
+          newObj[key] = targetFileContent[key]
+        }
+      })
+      return newObj
+    }
 
     // 把英文语言包内容拷贝到目标语言包
     if (targetLocale === 'en-US' || targetLocale === 'en') {
-      Object.keys(fileContent).forEach((key) => {
-        if (typeof fileContent[key] === 'string') {
-          // const item = convertToCamelCase(fileContent[key])
-          const item = fileContent[key]
-          // obj[key] = convertToCamelCase(item) as string
-          obj[key] = item
-        } else {
-          obj[key] = fileContent[key]
-        }
-      })
-      targetContent = obj
-    }
+      // 把'en-US'改成original-en-US
+      const enPath = localePath.replace(/\/[A-Za-z-]+.json/, '/hump-en-US.json')
+      targetContent = getObj(fileContent, obj)
+      saveLocaleFile(targetContent, enPath)
+      // log.info(`完成${targetLocale}语言包翻译`)
 
-    saveLocaleFile(obj, targetLocalePath)
-    log.info(`完成${targetLocale}语言包翻译`)
+      saveLocaleFile(getObj(otherFileContent, obj), targetLocalePath)
+    } else {
+      saveLocaleFile(obj, targetLocalePath)
+      // log.info(`完成${targetLocale}语言包翻译`)
+    }
   }
 
   return targetContent
@@ -192,12 +235,18 @@ class Translator {
         break
       case BAIDU:
         this.#provider = translateByBaidu
+        break
+      case CHAT_GPT:
+        this.#provider = translateByChatGPT
     }
     this.#targetLocale = targetLocale
     this.#providerOptions = providerOptions
   }
 
-  async translate(dictionary: Record<string, string>): Promise<Record<string, string>> {
+  async translate(dictionary: Record<string, string>): Promise<{
+    incrementalTranslation: Record<string, string>
+    incrementalTranslationCamelCase: Record<string, string>
+  }> {
     const allTextArr = Object.keys(dictionary).map((key) => dictionary[key])
     let restTextBundleArr = allTextArr
     log.debug(`allTextArr:${allTextArr.length}`)
@@ -241,6 +290,7 @@ class Translator {
       result.push(...resArr)
     }
 
+    const incrementalTranslationCamelCase: Record<string, string> = {}
     const incrementalTranslation: Record<string, string> = {}
     Object.keys(dictionary).forEach((key, index) => {
       // 翻译后有可能字符串前后会多出一个空格，这里做一下过滤
@@ -251,9 +301,13 @@ class Translator {
       if (!dictionary[key].endsWith(' ') && translatedText.endsWith(' ')) {
         translatedText = translatedText.slice(0, -1)
       }
-      incrementalTranslation[key] = convertToCamelCase(translatedText) as string
+      incrementalTranslation[key] = translatedText
+      incrementalTranslationCamelCase[key] = convertToCamelCase(translatedText) as string
     })
-    return incrementalTranslation
+    return {
+      incrementalTranslation,
+      incrementalTranslationCamelCase,
+    }
   }
 
   // 递归获取1w字以内的能够翻译的最大行数

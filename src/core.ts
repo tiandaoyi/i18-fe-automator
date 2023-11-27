@@ -14,7 +14,7 @@ import { getAbsolutePath } from './utils/getAbsolutePath'
 import Collector from './collector'
 import translate from './translate'
 import getLang from './utils/getLang'
-import { YOUDAO, GOOGLE, BAIDU } from './utils/constants'
+import { YOUDAO, GOOGLE, BAIDU, CHAT_GPT } from './utils/constants'
 import StateManager from './utils/stateManager'
 import exportExcel from './exportExcel'
 import exportExcelEnAndCn from './exportExcelEnAndCn'
@@ -23,7 +23,7 @@ import { saveLocaleFile } from './utils/saveLocaleFile'
 import { isObject } from './utils/assertType'
 
 interface InquirerResult {
-  translator?: 'google' | 'youdao' | 'baidu'
+  translator?: 'google' | 'youdao' | 'baidu' | 'chatGPT'
   key?: string
   secret?: string
   proxy?: string
@@ -110,6 +110,14 @@ function formatInquirerResult(answers: InquirerResult): TranslateConfig {
         secret: answers.secret,
       },
     }
+  } else if (answers.translator === CHAT_GPT) {
+    return {
+      translator: answers.translator,
+      chatGPT: {
+        key: answers.key,
+        proxy: answers.proxy,
+      },
+    }
   } else {
     return {
       translator: answers.translator,
@@ -134,8 +142,9 @@ async function getTranslationConfig() {
       default: YOUDAO,
       choices: [
         { name: '百度翻译', value: BAIDU },
-        // { name: '有道翻译', value: YOUDAO },
-        // { name: '谷歌翻译', value: GOOGLE },
+        { name: '有道翻译', value: YOUDAO },
+        { name: '谷歌翻译', value: GOOGLE },
+        { name: 'chatGPT翻译', value: CHAT_GPT },
       ],
       when(answers) {
         return !answers.skipTranslate
@@ -144,13 +153,37 @@ async function getTranslationConfig() {
     {
       type: 'input',
       name: 'proxy',
-      message: '使用谷歌服务需要翻墙，请输入代理地址',
+      message: '使用谷歌服务需要翻墙，请输入代理地址(如果已经翻墙，直接回车)',
       default: oldConfigCache.proxy || '',
       when(answers) {
         return answers.translator === GOOGLE
       },
+      // validate(input) {
+      //   return input.length === 0 ? '代理地址不能为空' : true
+      // },
+    },
+    {
+      type: 'input',
+      name: 'proxy',
+      message: '使用chatGPT服务需要翻墙，请输入代理地址(如果已经翻墙，直接回车)',
+      default: oldConfigCache.proxy || '',
+      when(answers) {
+        return answers.translator === CHAT_GPT
+      },
+      // validate(input) {
+      //   return input.length === 0 ? '代理地址不能为空' : true
+      // },
+    },
+    {
+      type: 'input',
+      name: 'key',
+      message: '使用chatGPT的OPENAI_API_KEY',
+      default: oldConfigCache.key || '',
+      when(answers) {
+        return answers.translator === CHAT_GPT
+      },
       validate(input) {
-        return input.length === 0 ? '代理地址不能为空' : true
+        return input.length === 0 ? 'OPENAI_API_KEY不能为空' : true
       },
     },
     {
@@ -314,6 +347,7 @@ export default async function (options: CommandOptions) {
       google: i18nConfig.google,
       youdao: i18nConfig.youdao,
       baidu: i18nConfig.baidu,
+      chatGPT: i18nConfig.chatGPT,
     })
 
     log.success('英文转换完毕!')

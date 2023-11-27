@@ -172,7 +172,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
   function getReplaceValue(value: string, params?: TemplateParams) {
     let targetKeyLiteral = t.stringLiteral('')
-    log.debug('172::::targetKeyLiteral')
+    // log.debug('172::::targetKeyLiteral')
     // 需要过滤处理引号和换行
     value = removeLineBreaksInTag(escapeQuotes(value))
 
@@ -320,7 +320,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         TemplateLiteral(path: NodePath<TemplateLiteral>) {
-          log.debug('TemplateLiteral----', path)
+          // log.debug('TemplateLiteral----', path)
 
           // if (isTransformKey) {
           //   path.skip()
@@ -419,7 +419,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
 
         // 函数调用表达式
         CallExpression(path: NodePath<CallExpression>) {
-          log.debug('CallExpression----', path)
+          // log.debug('CallExpression----', path)
 
           const { node } = path
           const callee = node.callee
@@ -529,7 +529,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         ImportDeclaration(path: NodePath<ImportDeclaration>) {
-          log.debug('ImportDeclaration----', path)
+          // log.debug('ImportDeclaration----', path)
 
           const res = importDeclaration.match(/from ["'](.*)["']/)
           const packageName = res ? res[1] : ''
@@ -549,7 +549,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         ArrowFunctionExpression(path: NodePath<ArrowFunctionExpression>) {
-          log.debug('ArrowFunctionExpression----', path)
+          // log.debug('ArrowFunctionExpression----', path)
 
           const { node } = path
           // 函数组件必须在代码最外层
@@ -561,7 +561,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         },
 
         FunctionExpression(path: NodePath<FunctionExpression>) {
-          log.debug('FunctionExpression----', path)
+          // log.debug('FunctionExpression----', path)
 
           const { node } = path
           // 函数组件必须在代码最外层
