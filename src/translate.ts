@@ -158,19 +158,28 @@ export default async function (
     const { incrementalTranslation, incrementalTranslationCamelCase } = await translator.translate(
       willTranslateText
     )
+    // newTargetLangPack对象中可能包含未转驼峰的value，需要批量处理
+    const _newTargetLangPack: any = {}
+    Object.entries(newTargetLangPack).forEach(([key, val]) => {
+      _newTargetLangPack[key] = convertToCamelCase(val)
+    })
+
     const otherTargetLangPack = JSON.parse(
       JSON.stringify({
         ...newTargetLangPack,
         ...incrementalTranslation,
       })
     )
-    newTargetLangPack = {
-      ...newTargetLangPack,
-      ...incrementalTranslationCamelCase,
-    }
+    // 这个是驼峰的key
+    newTargetLangPack = JSON.parse(
+      JSON.stringify({
+        ..._newTargetLangPack,
+        ...incrementalTranslationCamelCase,
+      })
+    )
 
-    console.log('otherTargetLangPack', otherTargetLangPack)
-    console.log('newTargetLangPack', newTargetLangPack)
+    // console.log('otherTargetLangPack', otherTargetLangPack)
+    // console.log('newTargetLangPack', newTargetLangPack)
 
     const fileContent = spreadObject(newTargetLangPack)
     const otherFileContent = spreadObject(otherTargetLangPack)
