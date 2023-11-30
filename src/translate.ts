@@ -263,6 +263,7 @@ class Translator {
 
     const translationCount = 100
     let startIndex = 0
+    // 翻译后的数据
     const result: string[] = []
 
     // 每轮循环，先判断100行key-value的字符数量
@@ -291,10 +292,15 @@ class Translator {
       ])
 
       let resArr: string[]
+      // @TODO:只考虑了英文的情况
       if (typeof res === 'object') {
-        resArr = res.map((item) => item.dst)
+        // 百度比较特殊，是dst
+        resArr = res.map((item) => item.dst.charAt(0).toUpperCase() + item.dst.slice(1))
       } else {
-        resArr = res.split(this.#separator)
+        // 用\n分割
+        resArr = res
+          .split(this.#separator)
+          .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
       }
       result.push(...resArr)
     }
