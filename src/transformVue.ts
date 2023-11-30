@@ -31,7 +31,7 @@ const COMMENT_TYPE = '!'
 
 function getDeepObjVal(myObj: any, val: string): any {
   // 如果不是个对象，return随机数
-  if (!myObj) return String((Math.random() * 10000) >> 0) + 'debug34'
+  if (!myObj) return String((Math.random() * 100000) >> 0) + 'debug34'
   if (typeof myObj === 'object') {
     const newVal = myObj[val] || myObj['']
     return typeof newVal === 'object' ? getDeepObjVal(newVal, val) : newVal
@@ -178,7 +178,7 @@ function getCnToEn(attrValue: string, rule: transformOptions['rule'], sourceCont
     getDeepObjVal(sourceContent, cn) ||
     sourceContent[removeLineBreaksInTag(escapeQuotes(cn))] ||
     getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(cn))) ||
-    String((Math.random() * 10000) >> 0) + 'debug181'
+    String((Math.random() * 100000) >> 0) + 'debug181'
   log.debug('enVal')
   log.debug(JSON.stringify(enVal))
   const key = uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(0, 6)
