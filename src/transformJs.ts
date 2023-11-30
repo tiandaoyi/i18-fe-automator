@@ -68,7 +68,7 @@ function getObjectExpression(obj: TemplateParams): ObjectExpression {
 
 function getDeepObjVal(myObj: any, val: string): any {
   // 如果不是个对象，return随机数
-  if (!myObj) return String((Math.random() * 100000) >> 0) + 'debug71'
+  if (!myObj) return String((Math.random() * 1000) >> 0) + 'debug71'
   if (typeof myObj === 'object') {
     const newVal = myObj[val] || myObj['']
     return typeof newVal === 'object' ? getDeepObjVal(newVal, val) : newVal
@@ -183,7 +183,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
         getDeepObjVal(sourceContent, value) ||
         sourceContent[removeLineBreaksInTag(escapeQuotes(value))] ||
         getDeepObjVal(sourceContent, removeLineBreaksInTag(escapeQuotes(value))) ||
-        String((Math.random() * 100000) >> 0) + 'debug196'
+        String((Math.random() * 1000) >> 0) + 'debug196'
       const uuidEnKeyStr = `${uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(
         0,
         6
@@ -462,7 +462,7 @@ function transformJs(code: string, options: transformOptions): GeneratorResult {
                     sourceContent,
                     removeLineBreaksInTag(escapeQuotes(descNode.value.value))
                   ) ||
-                  String((Math.random() * 100000) >> 0) + 'debug468'
+                  String((Math.random() * 1000) >> 0) + 'debug468'
                 newValue = `${uuidv5(currCollector.getCurrentCollectorPath(), uuidv5.URL).slice(
                   0,
                   6
