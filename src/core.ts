@@ -278,6 +278,7 @@ export default async function (options: CommandOptions) {
   log.debug(`命令行配置信息:`, i18nConfig)
 
   let oldPrimaryLang: Record<string, string> = {}
+  // 主语言，中文json
   const primaryLangPath = getAbsolutePath(process.cwd(), localePath)
   oldPrimaryLang = getLang(primaryLangPath)
   if (!skipExtract) {
@@ -339,9 +340,14 @@ export default async function (options: CommandOptions) {
   }
   log.success('中文转换完毕!')
 
+  // 以上这些是把中文提取出来，并且更新zh-CN.json，还有cnCollector
+
   console.log('') // 空一行
   let targetContent = {}
   if (!skipTranslate) {
+    // localePath: 'src/locales/zh-CN.json',
+    // locales: ['en-US'],
+    // oldPrimaryLang，现在中文的内容
     targetContent = await translate(localePath, locales, oldPrimaryLang, {
       translator: i18nConfig.translator,
       google: i18nConfig.google,
@@ -355,6 +361,8 @@ export default async function (options: CommandOptions) {
     const enCollector = Collector.getInstance()
 
     log.success('英文JSON')
+    // 全驼峰，无空格的英文key，hump-en-US.json
+    // {你好世界: "HelloWorld"}
     log.success(JSON.stringify(targetContent))
 
     // 将$t中的中文翻译成英文后再写入项目中

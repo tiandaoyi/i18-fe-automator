@@ -71,6 +71,7 @@ async function translateByChatGPT(
   }
 }
 
+// StringObject可能是：ss: {ss: sss:ss}
 function convertToCamelCase(str: string | StringObject) {
   if (typeof str !== 'string') {
     return str
@@ -118,6 +119,7 @@ export default async function (
   }
   log.verbose('当前使用的翻译器：', options.translator)
   const primaryLangPath = getAbsolutePath(process.cwd(), localePath)
+  // 默认是中文的 json，getLang获取object类型
   const newPrimaryLang = flatObjectDeep(getLang(primaryLangPath))
   const localeFileType = StateManager.getToolConfig().localeFileType
   let targetContent = {}
@@ -129,22 +131,35 @@ export default async function (
     const targetLocalePath = getAbsolutePath(process.cwd(), targetPath)
     let oldTargetLangPack: Record<string, string> = {}
     let newTargetLangPack: Record<string, string> = {}
+    // en-US.json : {"新增申请": "New application"}
+    // 如果en-US存在，就把老的en-US拿过来用
     if (fs.existsSync(targetLocalePath)) {
       oldTargetLangPack = flatObjectDeep(getLang(targetLocalePath))
     } else {
       fs.ensureFileSync(targetLocalePath)
     }
 
-    const keyList = Object.keys(newPrimaryLang)
+    const keyList = Object.keys(newPrimaryLang) // ["天才", "你好"]
+    //
     const willTranslateText: Record<string, string> = {}
 
+    // 每个key就是一个中文
     for (const key of keyList) {
       // 主语言同一个key的value不变，就复用原有的翻译结果
+      // 现在中文的内容
       const oldLang = flatObjectDeep(oldPrimaryLang)
+      // 判断转老的 扁平
+      // oldLang：老的中文对象，第一次应该是空的
+      // newPrimaryLang： 有值的中文json
+      // 如果老的中文对象中有值，并且en-US.json中该中文有值
+      // 则把en-US.json中的英文赋值给newTargetLangPack
       const isNotChanged = oldLang[key] === newPrimaryLang[key]
       if (isNotChanged && oldTargetLangPack[key]) {
+        // {"天才": 'enxx'}
         newTargetLangPack[key] = oldTargetLangPack[key]
       } else {
+        // 老的中文对象没匹配到，则把该中文给willTranslateText对象
+        // {"天才": "天才"}
         willTranslateText[key] = newPrimaryLang[key]
       }
     }
@@ -181,17 +196,21 @@ export default async function (
     // console.log('otherTargetLangPack', otherTargetLangPack)
     // console.log('newTargetLangPack', newTargetLangPack)
 
+    // 驼峰的key
     const fileContent = spreadObject(newTargetLangPack)
+    // 非驼峰的key -> 应该要存储到en_US.json的内容
     const otherFileContent = spreadObject(otherTargetLangPack)
-    const obj: any = {}
+    let obj: any = {}
 
     const getObj = (targetFileContent: any, newObj: any) => {
       newObj = JSON.parse(JSON.stringify(newObj))
       Object.keys(targetFileContent).forEach((key) => {
+        // 如果key是字符串，newObj = {x: x}
         if (typeof targetFileContent[key] === 'string') {
           const item = targetFileContent[key]
           newObj[key] = item
         } else {
+          // 如果key是非字符串
           newObj[key] = targetFileContent[key]
         }
       })
@@ -201,13 +220,19 @@ export default async function (
     // 把英文语言包内容拷贝到目标语言包
     if (targetLocale === 'en-US' || targetLocale === 'en') {
       // 把'en-US'改成original-en-US
-      const enPath = localePath.replace(/\/[A-Za-z-]+.json/, '/hump-en-US.json')
+      // const enPath = localePath.replace(/\/[A-Za-z-]+.json/, '/hump-en-US.json')
+      const enPath = targetLocalePath.replace(/\/[A-Za-z-]+.json/, '/hump-en-US.json')
+      // 全驼峰，无空格的英文key，hump-en-US.json
       targetContent = getObj(fileContent, obj)
+      // 保存这个全驼峰的文件 -> /hump-en-US.json
       saveLocaleFile(targetContent, enPath)
       // log.info(`完成${targetLocale}语言包翻译`)
 
-      saveLocaleFile(getObj(otherFileContent, obj), targetLocalePath)
+      obj = {}
+      const tempTargetContent = getObj(otherFileContent, obj)
+      saveLocaleFile(tempTargetContent, targetLocalePath)
     } else {
+      // @TODO: 目前执行不到
       saveLocaleFile(obj, targetLocalePath)
       // log.info(`完成${targetLocale}语言包翻译`)
     }
@@ -231,7 +256,7 @@ class Translator {
   #provider: tranlateFunction
   #targetLocale: string
   #providerOptions: TranslateConfig
-  #textLengthLimit = 5000
+  #textLengthLimit = 1000
   #separator = '\n' // 翻译文本拼接用的分隔符
 
   constructor({ provider, targetLocale, providerOptions }: TranslatorConstructor) {

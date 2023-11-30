@@ -21,10 +21,17 @@ export default function exportExcelEnAndCn(obj: any) {
   const currentLocaleObj = fs.readJSONSync(currentLocalePath)
   // log.info('currentLocaleObj')
   // log.info(currentLocaleObj)
-
-  const data = Object.entries(obj).map(([key, value]) => {
-    return [key as string, value as string, currentLocaleObj[value as string] || '']
+  const data: any = []
+  const failData: any = []
+  Object.entries(obj).forEach(([key, value]) => {
+    const en = currentLocaleObj[value as string] || ''
+    if (!key || (key && key.indexOf('debug') > -1) || !en || !value) {
+      failData.push([key as string, value as string, en])
+    } else {
+      data.push([key as string, value as string, en])
+    }
   })
-  const excelBuffer = buildExcel(headers, data, excelFileName)
+
+  const excelBuffer = buildExcel(headers, data.concat(failData), excelFileName)
   fs.writeFileSync(getAbsolutePath(process.cwd(), excelPath), excelBuffer, 'utf8')
 }

@@ -31,24 +31,42 @@ export async function baiduTranslate(
     sign,
     q: word,
   }
-  log.success(`本批次${word.length}个中文待翻译`)
-  log.info('q' + word)
-  const requestLimitLen = Math.ceil(word.length / MAX_COUNT)
-  const paramsList: any = []
-  const urlList: string[] = []
-  for (let i = 0; i < requestLimitLen; i++) {
-    const currText = word.slice(i * MAX_COUNT, MAX_COUNT * (i + 1))
-    log.success(`第${i + 1}小队${currText.length}个中文`)
+  const url = `${baseUrl}?${qs.stringify(params)}`
 
-    paramsList.push({
-      ...params,
-      q: currText,
-    })
-    urlList.push(`${baseUrl}?${qs.stringify(params)}`)
-  }
+  return new Promise((resolve, reject) => {
+    got
+      .get(url)
+      .then(({ body }: Response<string>) => {
+        const res = JSON.parse(body)
+        if (!res.error_code) {
+          resolve(res.trans_result)
+        } else {
+          reject(body)
+        }
+      })
+      .catch((e: any) => {
+        reject(e)
+      })
+  })
 
-  const list = await callApiMultipleTimes(urlList, paramsList)
-  return new Promise((resolve) => resolve(list.flat(Infinity)))
+  // log.success(`本批次${word.length}个中文待翻译`)
+  // log.info('q' + word)
+  // const requestLimitLen = Math.ceil(word.length / MAX_COUNT)
+  // const paramsList: any = []
+  // const urlList: string[] = []
+  // for (let i = 0; i < requestLimitLen; i++) {
+  //   const currText = word.slice(i * MAX_COUNT, MAX_COUNT * (i + 1))
+  //   log.success(`第${i + 1}小队${currText.length}个中文`)
+
+  //   paramsList.push({
+  //     ...params,
+  //     q: currText,
+  //   })
+  //   urlList.push(`${baseUrl}?${qs.stringify(params)}`)
+  // }
+
+  // const list = await callApiMultipleTimes(urlList, paramsList)
+  // return new Promise((resolve) => resolve(list.flat(Infinity)))
 }
 
 function callApiMultipleTimes(urlList: any, paramsList: any) {
@@ -59,7 +77,7 @@ function callApiMultipleTimes(urlList: any, paramsList: any) {
       .then(() => {
         log.success(`开始执行翻译本批次第${index + 1}次请求`)
         // 调用接口，并返回 Promise 对象
-        return got.get(urlList[0])
+        return got.get(urlList[index])
       })
       .then(({ body }: Response<string>) => {
         const res = JSON.parse(body)
