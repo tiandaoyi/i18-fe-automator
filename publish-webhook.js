@@ -62,6 +62,7 @@ async function main() {
       console.error('Error sending webhook request:', error.message)
     })
     .finally(() => {
+      rl.close()
       process.exit(0)
     })
 }
