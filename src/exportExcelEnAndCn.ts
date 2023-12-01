@@ -25,6 +25,9 @@ export default function exportExcelEnAndCn(obj: any) {
   const failData: any = []
   Object.entries(obj).forEach(([key, value]) => {
     const en = currentLocaleObj[value as string] || ''
+    if (key && typeof key === 'string') {
+      key = key.slice(0, 80)
+    }
     if (!key || (key && key.indexOf('debug') > -1) || !en || !value) {
       failData.push([key as string, value as string, en])
     } else {
