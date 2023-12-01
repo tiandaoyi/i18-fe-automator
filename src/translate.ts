@@ -256,7 +256,7 @@ class Translator {
   #provider: tranlateFunction
   #targetLocale: string
   #providerOptions: TranslateConfig
-  #textLengthLimit = 2000
+  #textLengthLimit = 5000
   #separator = '\n' // 翻译文本拼接用的分隔符
 
   constructor({ provider, targetLocale, providerOptions }: TranslatorConstructor) {
@@ -268,6 +268,7 @@ class Translator {
         this.#provider = translateByGoogle
         break
       case BAIDU:
+        this.#textLengthLimit = 2000
         this.#provider = translateByBaidu
         break
       case CHAT_GPT:

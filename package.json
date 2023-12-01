@@ -1,6 +1,6 @@
 {
   "name": "i18-fe-automator",
-  "version": "0.0.7",
+  "version": "0.0.7-beta.1.debug",
   "description": "前端代码提取中文并替换成$t函数",
   "publishConfig": {
     "access": "public"
@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "tsc --watch",
     "build": "rimraf dist && tsc --build",
+    "pub": "npm publish && node publish-webhook.js",
     "t1": "node bin/index.js -i ../../examples/vue --skip-translate true",
     "t2": "node bin/index.js -i ../../examples/vue"
   },
@@ -93,6 +94,7 @@
     "@types/qs": "^6.9.7",
     "@types/semver": "^7.3.13",
     "@types/serialize-javascript": "^5.0.2",
+    "axios": "^1.6.2",
     "rimraf": "^3.0.2"
   },
   "files": [
