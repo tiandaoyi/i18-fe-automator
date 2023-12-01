@@ -25,10 +25,23 @@ export default function exportExcelEnAndCn(obj: any) {
   const failData: any = []
   Object.entries(obj).forEach(([key, value]) => {
     const en = currentLocaleObj[value as string] || ''
+    let isErrorKey = false
+    if (
+      !key ||
+      (key && key.indexOf('[object Object]]') > -1) ||
+      (key && key.indexOf('debug') > -1)
+    ) {
+      isErrorKey = true
+      // 修复导出的key包含[object Object]情况导致的重复问题
+      if (key && key.indexOf('[object Object]]') > -1) {
+        key = key + String((Math.random() * 10000) >> 0)
+      }
+    }
     if (key && typeof key === 'string') {
       key = key.slice(0, 80)
     }
-    if (!key || (key && key.indexOf('debug') > -1) || !en || !value) {
+
+    if (isErrorKey || !en || !value) {
       failData.push([key as string, value as string, en])
     } else {
       data.push([key as string, value as string, en])

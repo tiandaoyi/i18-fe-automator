@@ -3,30 +3,45 @@ const { execSync } = require('child_process')
 const readline = require('readline')
 const { name, version } = require('./package.json')
 const fs = require('fs')
-const configPath = 'private-config.json'
-let config = {}
-if (fs.existsSync(configPath)) {
-  config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-} else {
-  console.log(`没有找到${configPath}配置文件，无法发送webhook通知`)
-  return
-}
-if (!config || !config.webhookUrl) {
-  console.log(`没有找到${configPath}配置的webhookUrl`)
-  return
-}
-const webhookUrl = config.webhookUrl
-// 获取最近的 commit 信息
-const commitMessage = execSync('git log -1 --pretty=%B').toString().trim()
 
-// 使用 readline 提示用户输入影响范围
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-})
+async function main() {
+  const configPath = 'private-config.json'
+  let config = {}
+  if (fs.existsSync(configPath)) {
+    config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+  } else {
+    console.log(`没有找到${configPath}配置文件，无法发送webhook通知`)
+    process.exit(1)
+  }
 
-rl.question('请输入影响范围，或者您的想法，比如是否建议更新（如果无，请直接回车）: ', (reach) => {
-  rl.close()
+  if (!config || !config.webhookUrl) {
+    console.log(`没有找到${configPath}配置的webhookUrl`)
+    process.exit(1)
+  }
+
+  const webhookUrl = config.webhookUrl
+
+  function questionAsync(query) {
+    return new Promise((resolve) => {
+      rl.question(query, resolve)
+    })
+  }
+
+  // 获取最近的 commit 信息
+  const commitMessage = execSync('git log -1 --pretty=%B').toString().trim()
+
+  // 使用 readline 提示用户输入影响范围
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+  console.log('\n\n\n')
+  // 配置命令行指令
+  const reach = await questionAsync('请输入影响范围（如果无，请直接回车）: ')
+  const isRequired =
+    (await questionAsync('该版本是否必须更新？请输入y/n(默认为否): ')).toLowerCase().trim() === 'y'
+  console.log('\n')
+
   // 填充需要发送的参数
   const payload = {
     name,
@@ -35,6 +50,7 @@ rl.question('请输入影响范围，或者您的想法，比如是否建议更�
     npmUrl: `https://www.npmjs.com/package/${name}`, // 替换为你的包的 NPM 地址
     content: commitMessage,
     reach: reach || '无',
+    isRequired: isRequired ? '是' : '否',
   }
   // 发送 POST 请求
   axios
@@ -45,7 +61,9 @@ rl.question('请输入影响范围，或者您的想法，比如是否建议更�
     .catch((error) => {
       console.error('Error sending webhook request:', error.message)
     })
-})
+}
+
+main()
 
 function formatDateTime(date) {
   const year = date.getFullYear()
