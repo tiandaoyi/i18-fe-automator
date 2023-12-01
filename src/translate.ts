@@ -256,7 +256,7 @@ class Translator {
   #provider: tranlateFunction
   #targetLocale: string
   #providerOptions: TranslateConfig
-  #textLengthLimit = 1000
+  #textLengthLimit = 2000
   #separator = '\n' // 翻译文本拼接用的分隔符
 
   constructor({ provider, targetLocale, providerOptions }: TranslatorConstructor) {
@@ -311,8 +311,8 @@ class Translator {
           this.#providerOptions
         ),
         new Promise((resolve) => {
-          log.success('3000m后执行下一批')
-          setTimeout(resolve, 3000)
+          log.success('2000m后执行下一批')
+          setTimeout(resolve, 2000)
         }), // 有道翻译接口限制每秒1次请求
       ])
 
