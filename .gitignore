@@ -7,4 +7,4 @@ dist
 .vscode
 locales
 *.xlsx
-.private-config.json
+private-config.json
